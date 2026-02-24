@@ -1,0 +1,3560 @@
+{
+    "item": [
+        {
+            "id": "208e86a1-de91-4b91-b627-40fd11dbe7d6",
+            "name": "Upload an attachment",
+            "request": {
+                "name": "Upload an attachment",
+                "description": {
+                    "content": "Upload a file attachment that can be used in Devin sessions. Returns the URL of the uploaded attachment as a string.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "attachments"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/attachments"
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "multipart/form-data"
+                    },
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "POST",
+                "body": {
+                    "mode": "formdata",
+                    "formdata": [
+                        {
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            },
+                            "key": "file",
+                            "type": "file"
+                        }
+                    ]
+                }
+            },
+            "response": [
+                {
+                    "id": "9f7d2e91-20a5-4462-94ed-c5a99418e2bb",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "attachments"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/attachments"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "multipart/form-data"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "file",
+                                    "type": "file"
+                                }
+                            ]
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "<string>",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "eacbc043-3274-481c-bc51-b3a4166b20e2",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "attachments"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/attachments"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "multipart/form-data"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "file",
+                                    "type": "file"
+                                }
+                            ]
+                        }
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "15554b1e-b588-486a-9834-ab52dd8bcf73",
+            "name": "Download an attachment",
+            "request": {
+                "name": "Download an attachment",
+                "description": {
+                    "content": "Download a file attachment using API key authentication. Returns a redirect to a presigned URL.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "attachments",
+                        ":uuid",
+                        ":name"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "<string>",
+                            "key": "uuid",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        },
+                        {
+                            "type": "any",
+                            "value": "<string>",
+                            "key": "name",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/attachments/:uuid/:name"
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "GET",
+                "body": {}
+            },
+            "response": [
+                {
+                    "id": "e96041c5-7327-4830-8cc5-e0108ef76dba",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "attachments",
+                                ":uuid",
+                                ":name"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "uuid"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "name"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/attachments/:uuid/:name"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "cc155a1a-5073-489f-8d75-c465bf6f9ce5",
+                    "name": "Redirect to presigned download URL",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "attachments",
+                                ":uuid",
+                                ":name"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "uuid"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "name"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/attachments/:uuid/:name"
+                        },
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "Temporary Redirect (since HTTP/1.1)",
+                    "code": 307,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "f7e6599c-6687-4872-8899-d82958de13f5",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "attachments",
+                                ":uuid",
+                                ":name"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "uuid"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "name"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/attachments/:uuid/:name"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "02d3b479-ab1a-47ab-ad70-cac51bbc0097",
+            "name": "Get enterprise consumption",
+            "request": {
+                "name": "Get enterprise consumption",
+                "description": {
+                    "content": "Retrieve detailed enterprise consumption data for a date range.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "enterprise",
+                        "consumption"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [
+                        {
+                            "disabled": false,
+                            "description": {
+                                "content": "",
+                                "type": "text/plain"
+                            },
+                            "key": "start_date",
+                            "value": "<string>"
+                        },
+                        {
+                            "disabled": false,
+                            "description": {
+                                "content": "",
+                                "type": "text/plain"
+                            },
+                            "key": "end_date",
+                            "value": "<string>"
+                        },
+                        {
+                            "disabled": false,
+                            "description": {
+                                "content": "",
+                                "type": "text/plain"
+                            },
+                            "key": "start",
+                            "value": "<string>"
+                        },
+                        {
+                            "disabled": false,
+                            "description": {
+                                "content": "",
+                                "type": "text/plain"
+                            },
+                            "key": "end",
+                            "value": "<string>"
+                        }
+                    ],
+                    "variable": [],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/enterprise/consumption"
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "GET",
+                "body": {}
+            },
+            "response": [
+                {
+                    "id": "917aab89-4eef-4693-8aa2-a3cbe12f4589",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "enterprise",
+                                "consumption"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "start_date",
+                                    "value": "<string>"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "end_date",
+                                    "value": "<string>"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "start",
+                                    "value": "<string>"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "end",
+                                    "value": "<string>"
+                                }
+                            ],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/enterprise/consumption"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"sessions\": [\n    {\n      \"session_name\": \"<string>\",\n      \"created_at\": \"<string>\",\n      \"acu_used\": \"<number>\",\n      \"url\": \"<string>\",\n      \"org_id\": \"<string>\",\n      \"org_name\": \"<string>\",\n      \"pull_requests\": [\n        {\n          \"pr_url\": \"<string>\",\n          \"pr_status\": \"merged\"\n        },\n        {\n          \"pr_url\": \"<string>\",\n          \"pr_status\": \"merged\"\n        }\n      ],\n      \"user_email\": \"<string>\",\n      \"user_name\": \"<string>\"\n    },\n    {\n      \"session_name\": \"<string>\",\n      \"created_at\": \"<string>\",\n      \"acu_used\": \"<number>\",\n      \"url\": \"<string>\",\n      \"org_id\": \"<string>\",\n      \"org_name\": \"<string>\",\n      \"pull_requests\": [\n        {\n          \"pr_url\": \"<string>\",\n          \"pr_status\": \"open\"\n        },\n        {\n          \"pr_url\": \"<string>\",\n          \"pr_status\": \"closed\"\n        }\n      ],\n      \"user_email\": \"<string>\",\n      \"user_name\": \"<string>\"\n    }\n  ],\n  \"cycle\": {\n    \"start\": \"<string>\",\n    \"end\": \"<string>\"\n  }\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "927ea354-2823-4a4b-9f72-44edac418cca",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "enterprise",
+                                "consumption"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "start_date",
+                                    "value": "<string>"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "end_date",
+                                    "value": "<string>"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "start",
+                                    "value": "<string>"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "end",
+                                    "value": "<string>"
+                                }
+                            ],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/enterprise/consumption"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "d77850e5-193f-4d5a-8e2e-c03991f44a4b",
+            "name": "List all knowledge",
+            "request": {
+                "name": "List all knowledge",
+                "description": {
+                    "content": "List all knowledge entries and folders for the organization.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "knowledge"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/knowledge"
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "GET",
+                "body": {}
+            },
+            "response": [
+                {
+                    "id": "26ffc4ba-10ad-47a6-9a9a-8502a0f73008",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "knowledge"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/knowledge"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"knowledge\": [\n    {\n      \"name\": \"<string>\",\n      \"body\": \"<string>\",\n      \"trigger_description\": \"<string>\",\n      \"id\": \"<string>\",\n      \"created_at\": \"<dateTime>\",\n      \"created_by\": {\n        \"full_name\": \"<string>\",\n        \"id\": \"<string>\",\n        \"image_url\": \"<string>\"\n      },\n      \"macro\": \"<string>\",\n      \"parent_folder_id\": \"<string>\",\n      \"pinned_repo\": \"<string>\"\n    },\n    {\n      \"name\": \"<string>\",\n      \"body\": \"<string>\",\n      \"trigger_description\": \"<string>\",\n      \"id\": \"<string>\",\n      \"created_at\": \"<dateTime>\",\n      \"created_by\": {\n        \"full_name\": \"<string>\",\n        \"id\": \"<string>\",\n        \"image_url\": \"<string>\"\n      },\n      \"macro\": \"<string>\",\n      \"parent_folder_id\": \"<string>\",\n      \"pinned_repo\": \"<string>\"\n    }\n  ],\n  \"folders\": [\n    {\n      \"id\": \"<string>\",\n      \"name\": \"<string>\",\n      \"description\": \"<string>\",\n      \"created_at\": \"<dateTime>\"\n    },\n    {\n      \"id\": \"<string>\",\n      \"name\": \"<string>\",\n      \"description\": \"<string>\",\n      \"created_at\": \"<dateTime>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "f37dd880-d75f-48a0-85da-6826e333c477",
+            "name": "Create knowledge entry",
+            "request": {
+                "name": "Create knowledge entry",
+                "description": {
+                    "content": "Create a new knowledge entry for the organization.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "knowledge"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/knowledge"
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "POST",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"name\": \"<string>\",\n  \"body\": \"<string>\",\n  \"trigger_description\": \"<string>\",\n  \"macro\": \"<string>\",\n  \"parent_folder_id\": \"<string>\",\n  \"pinned_repo\": \"<string>\"\n}",
+                    "options": {
+                        "raw": {
+                            "headerFamily": "json",
+                            "language": "json"
+                        }
+                    }
+                }
+            },
+            "response": [
+                {
+                    "id": "6c9003c5-3e10-4d80-9e10-5347e7c9c416",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "knowledge"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/knowledge"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"<string>\",\n  \"body\": \"<string>\",\n  \"trigger_description\": \"<string>\",\n  \"macro\": \"<string>\",\n  \"parent_folder_id\": \"<string>\",\n  \"pinned_repo\": \"<string>\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"name\": \"<string>\",\n  \"body\": \"<string>\",\n  \"trigger_description\": \"<string>\",\n  \"id\": \"<string>\",\n  \"created_at\": \"<dateTime>\",\n  \"created_by\": {\n    \"full_name\": \"<string>\",\n    \"id\": \"<string>\",\n    \"image_url\": \"<string>\"\n  },\n  \"macro\": \"<string>\",\n  \"parent_folder_id\": \"<string>\",\n  \"pinned_repo\": \"<string>\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "9dafb305-7ca4-461a-b9c5-29eaf5babe7a",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "knowledge"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/knowledge"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"<string>\",\n  \"body\": \"<string>\",\n  \"trigger_description\": \"<string>\",\n  \"macro\": \"<string>\",\n  \"parent_folder_id\": \"<string>\",\n  \"pinned_repo\": \"<string>\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "63213c9f-7390-4063-91f6-e07fac977431",
+            "name": "Delete knowledge entry",
+            "request": {
+                "name": "Delete knowledge entry",
+                "description": {
+                    "content": "Delete a knowledge entry from the organization.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "knowledge",
+                        ":note_id"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "<string>",
+                            "key": "note_id",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/knowledge/:note_id"
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "DELETE",
+                "body": {}
+            },
+            "response": [
+                {
+                    "id": "6d7d535f-9078-4890-8a0b-fd5382c75275",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "knowledge",
+                                ":note_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "note_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/knowledge/:note_id"
+                        },
+                        "method": "DELETE",
+                        "body": {}
+                    },
+                    "status": "No Content",
+                    "code": 204,
+                    "header": [],
+                    "cookie": [],
+                    "_postman_previewlanguage": "text"
+                },
+                {
+                    "id": "a94967df-72ee-4e7f-bd3f-bf9a396322ad",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "knowledge",
+                                ":note_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "note_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/knowledge/:note_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "DELETE",
+                        "body": {}
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "15a75db3-456d-4eef-8892-0574b3f72290",
+            "name": "Update knowledge entry",
+            "request": {
+                "name": "Update knowledge entry",
+                "description": {
+                    "content": "Update an existing knowledge entry.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "knowledge",
+                        ":note_id"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "<string>",
+                            "key": "note_id",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/knowledge/:note_id"
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "PUT",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"name\": \"<string>\",\n  \"body\": \"<string>\",\n  \"trigger_description\": \"<string>\",\n  \"macro\": \"<string>\",\n  \"parent_folder_id\": \"<string>\",\n  \"pinned_repo\": \"<string>\"\n}",
+                    "options": {
+                        "raw": {
+                            "headerFamily": "json",
+                            "language": "json"
+                        }
+                    }
+                }
+            },
+            "response": [
+                {
+                    "id": "09e14b01-f84f-4490-8335-c1a7dd128167",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "knowledge",
+                                ":note_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "note_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/knowledge/:note_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "PUT",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"<string>\",\n  \"body\": \"<string>\",\n  \"trigger_description\": \"<string>\",\n  \"macro\": \"<string>\",\n  \"parent_folder_id\": \"<string>\",\n  \"pinned_repo\": \"<string>\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"name\": \"<string>\",\n  \"body\": \"<string>\",\n  \"trigger_description\": \"<string>\",\n  \"id\": \"<string>\",\n  \"created_at\": \"<dateTime>\",\n  \"created_by\": {\n    \"full_name\": \"<string>\",\n    \"id\": \"<string>\",\n    \"image_url\": \"<string>\"\n  },\n  \"macro\": \"<string>\",\n  \"parent_folder_id\": \"<string>\",\n  \"pinned_repo\": \"<string>\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "8f8048c2-18f7-469c-bf30-aaad98134c29",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "knowledge",
+                                ":note_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "note_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/knowledge/:note_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "PUT",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"<string>\",\n  \"body\": \"<string>\",\n  \"trigger_description\": \"<string>\",\n  \"macro\": \"<string>\",\n  \"parent_folder_id\": \"<string>\",\n  \"pinned_repo\": \"<string>\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "c36fa5ce-eea8-4290-b83d-fcc2c8a04ab1",
+            "name": "List playbooks",
+            "request": {
+                "name": "List playbooks",
+                "description": {
+                    "content": "List all team playbooks for the organization.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "playbooks"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/playbooks"
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "GET",
+                "body": {}
+            },
+            "response": [
+                {
+                    "id": "f2b168d4-00b5-49d8-b222-a022780d9c56",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "playbooks"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/playbooks"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "[\n  {\n    \"playbook_id\": \"<string>\",\n    \"title\": \"<string>\",\n    \"body\": \"<string>\",\n    \"status\": \"<string>\",\n    \"access_type\": \"<string>\",\n    \"org_id\": \"<string>\",\n    \"created_at\": \"<dateTime>\",\n    \"updated_at\": \"<dateTime>\",\n    \"created_by_user_id\": \"<string>\",\n    \"created_by_user_name\": \"<string>\",\n    \"updated_by_user_id\": \"<string>\",\n    \"updated_by_user_name\": \"<string>\",\n    \"macro\": \"<string>\"\n  },\n  {\n    \"playbook_id\": \"<string>\",\n    \"title\": \"<string>\",\n    \"body\": \"<string>\",\n    \"status\": \"<string>\",\n    \"access_type\": \"<string>\",\n    \"org_id\": \"<string>\",\n    \"created_at\": \"<dateTime>\",\n    \"updated_at\": \"<dateTime>\",\n    \"created_by_user_id\": \"<string>\",\n    \"created_by_user_name\": \"<string>\",\n    \"updated_by_user_id\": \"<string>\",\n    \"updated_by_user_name\": \"<string>\",\n    \"macro\": \"<string>\"\n  }\n]",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "90cfa1e9-6b20-48e9-9103-daa68eb6e0eb",
+            "name": "Create playbook",
+            "request": {
+                "name": "Create playbook",
+                "description": {
+                    "content": "Create a new team playbook for the organization.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "playbooks"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/playbooks"
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "POST",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"title\": \"<string>\",\n  \"body\": \"<string>\",\n  \"macro\": \"<string>\"\n}",
+                    "options": {
+                        "raw": {
+                            "headerFamily": "json",
+                            "language": "json"
+                        }
+                    }
+                }
+            },
+            "response": [
+                {
+                    "id": "3d4cd41e-d8cd-4706-bda6-c93a0ed39bb8",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "playbooks"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/playbooks"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"<string>\",\n  \"body\": \"<string>\",\n  \"macro\": \"<string>\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"playbook_id\": \"<string>\",\n  \"title\": \"<string>\",\n  \"body\": \"<string>\",\n  \"status\": \"<string>\",\n  \"access_type\": \"<string>\",\n  \"org_id\": \"<string>\",\n  \"created_at\": \"<dateTime>\",\n  \"updated_at\": \"<dateTime>\",\n  \"created_by_user_id\": \"<string>\",\n  \"created_by_user_name\": \"<string>\",\n  \"updated_by_user_id\": \"<string>\",\n  \"updated_by_user_name\": \"<string>\",\n  \"macro\": \"<string>\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "cb31231f-e3a8-4085-a577-47c71328b620",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "playbooks"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/playbooks"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"<string>\",\n  \"body\": \"<string>\",\n  \"macro\": \"<string>\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "599d0dcf-de20-419f-85fe-38f02109cc7f",
+            "name": "Delete playbook",
+            "request": {
+                "name": "Delete playbook",
+                "description": {
+                    "content": "Delete a team playbook from the organization.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "playbooks",
+                        ":playbook_id"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "<string>",
+                            "key": "playbook_id",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/playbooks/:playbook_id"
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "DELETE",
+                "body": {}
+            },
+            "response": [
+                {
+                    "id": "b8f73f5d-7658-4988-a9b6-67f364ed28db",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "playbooks",
+                                ":playbook_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "playbook_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/playbooks/:playbook_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "DELETE",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"status\": \"<string>\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "716d1963-5ab2-4d6f-b2dc-bfc5f433ebac",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "playbooks",
+                                ":playbook_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "playbook_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/playbooks/:playbook_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "DELETE",
+                        "body": {}
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "438b0521-8b56-4be7-b7c6-07f86033e1a4",
+            "name": "Get playbook",
+            "request": {
+                "name": "Get playbook",
+                "description": {
+                    "content": "Get a specific team playbook by ID.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "playbooks",
+                        ":playbook_id"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "<string>",
+                            "key": "playbook_id",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/playbooks/:playbook_id"
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "GET",
+                "body": {}
+            },
+            "response": [
+                {
+                    "id": "8bb5deec-cd76-4424-b7b1-0ff219edade8",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "playbooks",
+                                ":playbook_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "playbook_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/playbooks/:playbook_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"playbook_id\": \"<string>\",\n  \"title\": \"<string>\",\n  \"body\": \"<string>\",\n  \"status\": \"<string>\",\n  \"access_type\": \"<string>\",\n  \"org_id\": \"<string>\",\n  \"created_at\": \"<dateTime>\",\n  \"updated_at\": \"<dateTime>\",\n  \"created_by_user_id\": \"<string>\",\n  \"created_by_user_name\": \"<string>\",\n  \"updated_by_user_id\": \"<string>\",\n  \"updated_by_user_name\": \"<string>\",\n  \"macro\": \"<string>\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "b0ffb182-3fc2-4d05-b283-ed3af3c64780",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "playbooks",
+                                ":playbook_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "playbook_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/playbooks/:playbook_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "545a64e6-9f26-462c-ae4a-cad7736ce382",
+            "name": "Update playbook",
+            "request": {
+                "name": "Update playbook",
+                "description": {
+                    "content": "Update an existing team playbook.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "playbooks",
+                        ":playbook_id"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "<string>",
+                            "key": "playbook_id",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/playbooks/:playbook_id"
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "PUT",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"title\": \"<string>\",\n  \"body\": \"<string>\",\n  \"macro\": \"<string>\"\n}",
+                    "options": {
+                        "raw": {
+                            "headerFamily": "json",
+                            "language": "json"
+                        }
+                    }
+                }
+            },
+            "response": [
+                {
+                    "id": "7d203bc5-0765-4ba6-8b5a-89f4bc65833a",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "playbooks",
+                                ":playbook_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "playbook_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/playbooks/:playbook_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "PUT",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"<string>\",\n  \"body\": \"<string>\",\n  \"macro\": \"<string>\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"status\": \"<string>\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "44ff4bd6-4d4f-4ed8-b4c1-58ce42840502",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "playbooks",
+                                ":playbook_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "playbook_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/playbooks/:playbook_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "PUT",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"<string>\",\n  \"body\": \"<string>\",\n  \"macro\": \"<string>\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "4f894dae-b937-4fdb-b06b-e6dac1bc0980",
+            "name": "List secrets",
+            "request": {
+                "name": "List secrets",
+                "description": {
+                    "content": "List all secrets for the organization. Returns metadata only, not the secret values.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "secrets"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/secrets"
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "GET",
+                "body": {}
+            },
+            "response": [
+                {
+                    "id": "40ba10d3-ce13-481a-a1b1-38e8a7ef7cfe",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "secrets"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/secrets"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "[\n  {\n    \"id\": \"<string>\",\n    \"type\": \"totp\",\n    \"created_at\": \"<dateTime>\",\n    \"key\": \"<string>\"\n  },\n  {\n    \"id\": \"<string>\",\n    \"type\": \"cookie\",\n    \"created_at\": \"<dateTime>\",\n    \"key\": \"<string>\"\n  }\n]",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "232af528-83ad-4a5a-8322-3546ecd7e524",
+            "name": "Create a secret",
+            "request": {
+                "name": "Create a secret",
+                "description": {
+                    "content": "Create a new secret for the organization. Supports cookie, key-value, and TOTP secret types.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "secrets"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/secrets"
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "POST",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"type\": \"dictionary\",\n  \"key\": \"<string>\",\n  \"value\": \"<string>\",\n  \"sensitive\": \"<boolean>\",\n  \"note\": \"<string>\",\n  \"scope\": \"org\"\n}",
+                    "options": {
+                        "raw": {
+                            "headerFamily": "json",
+                            "language": "json"
+                        }
+                    }
+                }
+            },
+            "response": [
+                {
+                    "id": "df348048-2b0d-4ac8-ad0b-b35147613988",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "secrets"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/secrets"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"type\": \"dictionary\",\n  \"key\": \"<string>\",\n  \"value\": \"<string>\",\n  \"sensitive\": \"<boolean>\",\n  \"note\": \"<string>\",\n  \"scope\": \"org\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"id\": \"<string>\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "b7000e38-7706-4216-856d-090edd3df404",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "secrets"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/secrets"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"type\": \"dictionary\",\n  \"key\": \"<string>\",\n  \"value\": \"<string>\",\n  \"sensitive\": \"<boolean>\",\n  \"note\": \"<string>\",\n  \"scope\": \"org\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "26968d04-5101-40eb-9d10-a78586651715",
+            "name": "Delete a secret",
+            "request": {
+                "name": "Delete a secret",
+                "description": {
+                    "content": "Delete a secret from the organization.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "secrets",
+                        ":secret_id"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "<string>",
+                            "key": "secret_id",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/secrets/:secret_id"
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "DELETE",
+                "body": {}
+            },
+            "response": [
+                {
+                    "id": "7d01af2e-2c6a-4050-9fc6-e1a6194ca2f5",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "secrets",
+                                ":secret_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "secret_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/secrets/:secret_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "DELETE",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"message\": \"<string>\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "7d61cece-125b-4875-b442-bafd2ed0ac60",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "secrets",
+                                ":secret_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "secret_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/secrets/:secret_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "DELETE",
+                        "body": {}
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "7069d76d-1020-491f-abe2-3b00a11d87c7",
+            "name": "List sessions",
+            "request": {
+                "name": "List sessions",
+                "description": {
+                    "content": "List all Devin sessions for your organization. Supports pagination and filtering by tags and user email.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "sessions"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [
+                        {
+                            "disabled": false,
+                            "description": {
+                                "content": "",
+                                "type": "text/plain"
+                            },
+                            "key": "limit",
+                            "value": "100"
+                        },
+                        {
+                            "disabled": false,
+                            "description": {
+                                "content": "",
+                                "type": "text/plain"
+                            },
+                            "key": "offset",
+                            "value": "0"
+                        },
+                        {
+                            "disabled": false,
+                            "description": {
+                                "content": "",
+                                "type": "text/plain"
+                            },
+                            "key": "skip",
+                            "value": "<integer>"
+                        },
+                        {
+                            "disabled": false,
+                            "description": {
+                                "content": "List of tags to filter sessions by.",
+                                "type": "text/plain"
+                            },
+                            "key": "tags",
+                            "value": "<string>"
+                        },
+                        {
+                            "disabled": false,
+                            "description": {
+                                "content": "List of tags to filter sessions by.",
+                                "type": "text/plain"
+                            },
+                            "key": "tags",
+                            "value": "<string>"
+                        },
+                        {
+                            "disabled": false,
+                            "description": {
+                                "content": "Filter sessions by the creator's email address.",
+                                "type": "text/plain"
+                            },
+                            "key": "user_email",
+                            "value": "<string>"
+                        }
+                    ],
+                    "variable": [],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/sessions"
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "GET",
+                "body": {}
+            },
+            "response": [
+                {
+                    "id": "42a10997-206c-4f11-bb02-767f0a6b97cd",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "limit",
+                                    "value": "100"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "offset",
+                                    "value": "0"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "skip",
+                                    "value": "<integer>"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "List of tags to filter sessions by.",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "tags",
+                                    "value": "<string>"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "Filter sessions by the creator's email address.",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "user_email",
+                                    "value": "<string>"
+                                }
+                            ],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"sessions\": [\n    {\n      \"session_id\": \"<string>\",\n      \"status\": \"<string>\",\n      \"created_at\": \"<dateTime>\",\n      \"updated_at\": \"<dateTime>\",\n      \"playbook_id\": \"<string>\",\n      \"pull_request\": {\n        \"url\": \"<string>\"\n      },\n      \"requesting_user_email\": \"<string>\",\n      \"snapshot_id\": \"<string>\",\n      \"status_enum\": \"finished\",\n      \"structured_output\": \"\",\n      \"tags\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"title\": \"<string>\"\n    },\n    {\n      \"session_id\": \"<string>\",\n      \"status\": \"<string>\",\n      \"created_at\": \"<dateTime>\",\n      \"updated_at\": \"<dateTime>\",\n      \"playbook_id\": \"<string>\",\n      \"pull_request\": {\n        \"url\": \"<string>\"\n      },\n      \"requesting_user_email\": \"<string>\",\n      \"snapshot_id\": \"<string>\",\n      \"status_enum\": \"suspend_requested_frontend\",\n      \"structured_output\": \"\",\n      \"tags\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"title\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "99d10f0f-c03e-43be-ad33-c91c701df95f",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "limit",
+                                    "value": "100"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "offset",
+                                    "value": "0"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "skip",
+                                    "value": "<integer>"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "List of tags to filter sessions by.",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "tags",
+                                    "value": "<string>"
+                                },
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "Filter sessions by the creator's email address.",
+                                        "type": "text/plain"
+                                    },
+                                    "key": "user_email",
+                                    "value": "<string>"
+                                }
+                            ],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "799c9578-9830-4d72-8246-52c989c79306",
+            "name": "Create a new session",
+            "request": {
+                "name": "Create a new session",
+                "description": {
+                    "content": "Create a new Devin session with the specified prompt and configuration options.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "sessions"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/sessions"
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "POST",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"prompt\": \"<string>\",\n  \"idempotent\": false,\n  \"knowledge_ids\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"max_acu_limit\": \"<integer>\",\n  \"playbook_id\": \"<string>\",\n  \"secret_ids\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"session_secrets\": [\n    {\n      \"key\": \"<string>\",\n      \"value\": \"<string>\",\n      \"sensitive\": true\n    },\n    {\n      \"key\": \"<string>\",\n      \"value\": \"<string>\",\n      \"sensitive\": true\n    }\n  ],\n  \"snapshot_id\": \"<string>\",\n  \"structured_output_schema\": {\n    \"key_0\": \"string\"\n  },\n  \"tags\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"title\": \"<string>\",\n  \"unlisted\": false\n}",
+                    "options": {
+                        "raw": {
+                            "headerFamily": "json",
+                            "language": "json"
+                        }
+                    }
+                }
+            },
+            "response": [
+                {
+                    "id": "365bdd01-a737-4c87-bb97-4450dbbc4b91",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"prompt\": \"<string>\",\n  \"idempotent\": false,\n  \"knowledge_ids\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"max_acu_limit\": \"<integer>\",\n  \"playbook_id\": \"<string>\",\n  \"secret_ids\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"session_secrets\": [\n    {\n      \"key\": \"<string>\",\n      \"value\": \"<string>\",\n      \"sensitive\": true\n    },\n    {\n      \"key\": \"<string>\",\n      \"value\": \"<string>\",\n      \"sensitive\": true\n    }\n  ],\n  \"snapshot_id\": \"<string>\",\n  \"structured_output_schema\": {\n    \"key_0\": \"string\"\n  },\n  \"tags\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"title\": \"<string>\",\n  \"unlisted\": false\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"session_id\": \"<string>\",\n  \"url\": \"<string>\",\n  \"is_new_session\": \"<boolean>\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "7dd23d8f-9244-43dc-a510-f3d0fb51d2c9",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"prompt\": \"<string>\",\n  \"idempotent\": false,\n  \"knowledge_ids\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"max_acu_limit\": \"<integer>\",\n  \"playbook_id\": \"<string>\",\n  \"secret_ids\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"session_secrets\": [\n    {\n      \"key\": \"<string>\",\n      \"value\": \"<string>\",\n      \"sensitive\": true\n    },\n    {\n      \"key\": \"<string>\",\n      \"value\": \"<string>\",\n      \"sensitive\": true\n    }\n  ],\n  \"snapshot_id\": \"<string>\",\n  \"structured_output_schema\": {\n    \"key_0\": \"string\"\n  },\n  \"tags\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"title\": \"<string>\",\n  \"unlisted\": false\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "edf0ead4-f53d-4e74-b949-b35d19a6a863",
+            "name": "Terminate a session",
+            "request": {
+                "name": "Terminate a session",
+                "description": {
+                    "content": "Terminate an active Devin session. The session must not already be in an exited state.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "sessions",
+                        ":session_id"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "<string>",
+                            "key": "session_id",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/sessions/:session_id"
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "DELETE",
+                "body": {}
+            },
+            "response": [
+                {
+                    "id": "08cdac9b-c82b-4a53-8d20-96a6d20b9bf9",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions",
+                                ":session_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "session_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions/:session_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "DELETE",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": \"<string>\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "06e00eac-3965-4227-b3cb-418eed518163",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions",
+                                ":session_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "session_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions/:session_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "DELETE",
+                        "body": {}
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "fe4f873d-d6ff-4584-9ec0-db5451316124",
+            "name": "Retrieve details about an existing session",
+            "request": {
+                "name": "Retrieve details about an existing session",
+                "description": {
+                    "content": "Retrieve detailed information about an existing Devin session, including its status, output, and metadata.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "sessions",
+                        ":session_id"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "<string>",
+                            "key": "session_id",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/sessions/:session_id"
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "GET",
+                "body": {}
+            },
+            "response": [
+                {
+                    "id": "3e7230f1-9cb2-4be8-9177-3d434a4d3910",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions",
+                                ":session_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "session_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions/:session_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"session_id\": \"<string>\",\n  \"status\": \"<string>\",\n  \"created_at\": \"<dateTime>\",\n  \"updated_at\": \"<dateTime>\",\n  \"playbook_id\": \"<string>\",\n  \"pull_request\": {\n    \"url\": \"<string>\"\n  },\n  \"snapshot_id\": \"<string>\",\n  \"status_enum\": \"expired\",\n  \"structured_output\": \"\",\n  \"tags\": [\n    \"<string>\",\n    \"<string>\"\n  ],\n  \"title\": \"<string>\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "1752f67c-a349-4835-afdf-fdd03db78d53",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions",
+                                ":session_id"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "session_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions/:session_id"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "3f42b384-76ed-4a02-bdf5-5f85e625b79e",
+            "name": "List session attachments",
+            "request": {
+                "name": "List session attachments",
+                "description": {
+                    "content": "List all attachments for a session, including both Devin-generated and user-uploaded files.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "sessions",
+                        ":session_id",
+                        "attachments"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "<string>",
+                            "key": "session_id",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/sessions/:session_id/attachments"
+                },
+                "header": [
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "GET",
+                "body": {}
+            },
+            "response": [
+                {
+                    "id": "0a6fdcf4-6e5e-49fb-aee8-5f63b5178320",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions",
+                                ":session_id",
+                                "attachments"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "session_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions/:session_id/attachments"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "[\n  {\n    \"attachment_id\": \"<string>\",\n    \"name\": \"<string>\",\n    \"url\": \"<string>\",\n    \"source\": \"<string>\",\n    \"content_type\": \"<string>\"\n  },\n  {\n    \"attachment_id\": \"<string>\",\n    \"name\": \"<string>\",\n    \"url\": \"<string>\",\n    \"source\": \"<string>\",\n    \"content_type\": \"<string>\"\n  }\n]",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "34b7eae4-4717-4337-8f30-2b02c1f9e005",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions",
+                                ":session_id",
+                                "attachments"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "session_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions/:session_id/attachments"
+                        },
+                        "header": [
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "GET",
+                        "body": {}
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "9787b9ef-ad8f-41ba-b4a8-9b2e3a85ee72",
+            "name": "Send a message to a session",
+            "request": {
+                "name": "Send a message to a session",
+                "description": {
+                    "content": "Send a message to an active Devin session. The session must be in a running state to receive messages. Returns null on success, or a detail message if the session is already suspended.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "sessions",
+                        ":session_id",
+                        "message"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "<string>",
+                            "key": "session_id",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/sessions/:session_id/message"
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "POST",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"message\": \"<string>\"\n}",
+                    "options": {
+                        "raw": {
+                            "headerFamily": "json",
+                            "language": "json"
+                        }
+                    }
+                }
+            },
+            "response": [
+                {
+                    "id": "b00c08f5-25a7-4cd5-bf40-3e0ff7b91920",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions",
+                                ":session_id",
+                                "message"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "session_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions/:session_id/message"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"message\": \"<string>\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": \"<string>\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "66c186d3-74a8-404f-8c36-d86599ba5be8",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions",
+                                ":session_id",
+                                "message"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "session_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions/:session_id/message"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "POST",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"message\": \"<string>\"\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        },
+        {
+            "id": "3e4406fa-b816-4ef6-bd4f-d381218149a4",
+            "name": "Update session tags",
+            "request": {
+                "name": "Update session tags",
+                "description": {
+                    "content": "Update the tags associated with a Devin session.",
+                    "type": "text/plain"
+                },
+                "url": {
+                    "path": [
+                        "v1",
+                        "sessions",
+                        ":session_id",
+                        "tags"
+                    ],
+                    "host": [
+                        "{{baseUrl}}"
+                    ],
+                    "query": [],
+                    "variable": [
+                        {
+                            "type": "any",
+                            "value": "<string>",
+                            "key": "session_id",
+                            "disabled": false,
+                            "description": {
+                                "content": "(Required) ",
+                                "type": "text/plain"
+                            }
+                        }
+                    ],
+                    "protocol": "https",
+                    "raw": "https://{{baseUrl}}/v1/sessions/:session_id/tags"
+                },
+                "header": [
+                    {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                    },
+                    {
+                        "key": "Accept",
+                        "value": "application/json"
+                    }
+                ],
+                "method": "PUT",
+                "body": {
+                    "mode": "raw",
+                    "raw": "{\n  \"tags\": [\n    \"<string>\",\n    \"<string>\"\n  ]\n}",
+                    "options": {
+                        "raw": {
+                            "headerFamily": "json",
+                            "language": "json"
+                        }
+                    }
+                }
+            },
+            "response": [
+                {
+                    "id": "9a8e3ff0-7623-44b1-8b5c-b32ce431ca10",
+                    "name": "Successful Response",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions",
+                                ":session_id",
+                                "tags"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "session_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions/:session_id/tags"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "PUT",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"tags\": [\n    \"<string>\",\n    \"<string>\"\n  ]\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "OK",
+                    "code": 200,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": \"<string>\"\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                },
+                {
+                    "id": "0705a225-65e3-4964-8b8c-25fcf283e866",
+                    "name": "Validation Error",
+                    "originalRequest": {
+                        "url": {
+                            "path": [
+                                "v1",
+                                "sessions",
+                                ":session_id",
+                                "tags"
+                            ],
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "query": [],
+                            "variable": [
+                                {
+                                    "disabled": false,
+                                    "description": {
+                                        "content": "(Required) ",
+                                        "type": "text/plain"
+                                    },
+                                    "type": "any",
+                                    "value": "<string>",
+                                    "key": "session_id"
+                                }
+                            ],
+                            "protocol": "https",
+                            "raw": "https://{{baseUrl}}/v1/sessions/:session_id/tags"
+                        },
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Accept",
+                                "value": "application/json"
+                            }
+                        ],
+                        "method": "PUT",
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"tags\": [\n    \"<string>\",\n    \"<string>\"\n  ]\n}",
+                            "options": {
+                                "raw": {
+                                    "headerFamily": "json",
+                                    "language": "json"
+                                }
+                            }
+                        }
+                    },
+                    "status": "Unprocessable Entity (WebDAV) (RFC 4918)",
+                    "code": 422,
+                    "header": [
+                        {
+                            "key": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ],
+                    "body": "{\n  \"detail\": [\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    },\n    {\n      \"loc\": [\n        \"<string>\",\n        \"<string>\"\n      ],\n      \"msg\": \"<string>\",\n      \"type\": \"<string>\"\n    }\n  ]\n}",
+                    "cookie": [],
+                    "_postman_previewlanguage": "json"
+                }
+            ],
+            "event": [],
+            "protocolProfileBehavior": {
+                "disableBodyPruning": true
+            }
+        }
+    ],
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{devinApiKey}}",
+                "type": "any"
+            }
+        ]
+    },
+    "event": [],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "api.devin.ai"
+        },
+        {
+            "key": "devinApiKey",
+            "value": ""
+        }
+    ],
+    "info": {
+        "_postman_id": "a09785f6-ee4f-4f9b-8aa5-ede43d0a38a8",
+        "name": "Devin API v1",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "description": {
+            "content": "Devin v1 API with Personal and Service API Keys",
+            "type": "text/plain"
+        }
+    }
+}
