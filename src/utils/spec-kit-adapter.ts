@@ -35,6 +35,8 @@ const KNOWN_SPEC_FILES = new Set([
  */
 const KNOWN_SPEC_FOLDERS = new Set(["checklists", "contracts"]);
 
+const MAX_ADAPTER_DIRECTORY_DEPTH = 10;
+
 /**
  * Spec System Adapter
  * Provides a unified interface for working with both OpenSpec and SpecKit
@@ -396,7 +398,10 @@ export class SpecSystemAdapter {
 	/**
 	 * Recursively checks whether a directory contains any markdown files.
 	 */
-	private directoryHasMarkdown(dirPath: string): boolean {
+	private directoryHasMarkdown(dirPath: string, depth = 0): boolean {
+		if (depth > MAX_ADAPTER_DIRECTORY_DEPTH) {
+			return false;
+		}
 		try {
 			const entries = readdirSync(dirPath);
 			for (const entry of entries) {
@@ -405,7 +410,11 @@ export class SpecSystemAdapter {
 				if (entryStat.isFile() && entry.endsWith(".md")) {
 					return true;
 				}
-				if (entryStat.isDirectory() && this.directoryHasMarkdown(entryPath)) {
+				if (
+					entryStat.isDirectory() &&
+					!entryStat.isSymbolicLink() &&
+					this.directoryHasMarkdown(entryPath, depth + 1)
+				) {
 					return true;
 				}
 			}

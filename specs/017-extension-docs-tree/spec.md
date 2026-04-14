@@ -70,6 +70,7 @@ As a developer who just ran an extension command that generated new documents, I
 - What happens when a deeply nested subfolder structure exists (e.g., `v-model/tests/unit/`)? The full directory tree is displayed recursively regardless of depth.
 - What happens when a subfolder has the same name as a known document type (e.g., a folder called `spec/`)? It should be treated as a generic subfolder, not confused with `spec.md`.
 - What happens when file names contain special characters or very long names? The display label should be derived by removing the `.md` extension and formatting kebab-case to sentence case (capitalize first letter, replace hyphens with spaces), matching existing behavior.
+- What happens when an extension generates a file with the same name as a known document (e.g., a `plan.md` inside an extension subfolder)? At the top level, known files take precedence and the extension-generated duplicate is not shown. Inside extension subfolders, all `.md` files are shown regardless of name since the known-file exclusion only applies at the spec root level.
 
 ## Requirements *(mandatory)*
 

@@ -34,6 +34,7 @@ import { getChecklistStatusFromFile } from "../utils/checklist-parser";
 const MARKDOWN_EXTENSION_PATTERN = /\.md$/;
 const SPEC_FILE_WATCHER_DEBOUNCE_MS = 2000;
 const SPEC_FILE_WATCHER_GLOB = "**/specs/**/*.md";
+const MAX_EXTENSION_FOLDER_DEPTH = 10;
 
 export class SpecExplorerProvider implements TreeDataProvider<SpecItem> {
 	static readonly viewId = "gatomia.views.specExplorer";
@@ -945,7 +946,10 @@ export class SpecExplorerProvider implements TreeDataProvider<SpecItem> {
 							element.system
 						)
 					);
-				} else if (entryStat.isDirectory()) {
+				} else if (
+					entryStat.isDirectory() &&
+					this.directoryHasMarkdown(entryPath, readdirSync, statSync)
+				) {
 					const relativePath = workspace.asRelativePath(entryPath);
 					const formattedName =
 						entry.charAt(0).toUpperCase() + entry.slice(1).replace(/-/g, " ");
@@ -972,6 +976,43 @@ export class SpecExplorerProvider implements TreeDataProvider<SpecItem> {
 			console.error("Error reading extension folder:", error);
 			return [];
 		}
+	}
+
+	/**
+	 * Recursively checks whether a directory contains any markdown files.
+	 */
+	private directoryHasMarkdown(
+		dirPath: string,
+		readdirFn: typeof import("node:fs").readdirSync,
+		statFn: typeof import("node:fs").statSync,
+		depth = 0
+	): boolean {
+		if (depth > MAX_EXTENSION_FOLDER_DEPTH) {
+			return false;
+		}
+		try {
+			const entries = readdirFn(dirPath);
+			for (const entry of entries) {
+				const entryPath = join(dirPath, entry);
+				const entryStat = statFn(entryPath);
+				if (entryStat.isFile() && entry.endsWith(".md")) {
+					return true;
+				}
+				if (
+					entryStat.isDirectory() &&
+					!entryStat.isSymbolicLink() &&
+					this.directoryHasMarkdown(entryPath, readdirFn, statFn, depth + 1)
+				) {
+					return true;
+				}
+			}
+		} catch (error) {
+			console.error(
+				`Error checking directory for markdown files: ${dirPath}`,
+				error
+			);
+		}
+		return false;
 	}
 }
 

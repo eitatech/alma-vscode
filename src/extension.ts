@@ -1050,6 +1050,14 @@ function registerCommands({
 		commands.registerCommand(
 			"gatomia.spec.open",
 			async (relativePath: string, type: string, line?: number) => {
+				if (
+					type === "extension-document" ||
+					type === "extension-folder"
+				) {
+					outputChannel.appendLine(
+						`[GatomIA] Extension document opened: ${relativePath} (type: ${type})`
+					);
+				}
 				const uri = resolveWorkspaceRelativeUri(relativePath);
 				if (uri) {
 					const artifact = await renderPreviewForUri(uri);

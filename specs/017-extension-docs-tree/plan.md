@@ -16,7 +16,7 @@ Display extension-generated markdown documents dynamically in the Spec Explorer 
 **Target Platform**: VS Code Extension (Node.js host)
 **Project Type**: VS Code Extension (desktop-app)
 **Performance Goals**: Tree rendering under 100ms for typical spec directories (< 50 files)
-**Constraints**: No synchronous blocking of the extension host; debounced refresh at 2s
+**Constraints**: Debounced refresh at 2s. Note: synchronous `readdirSync`/`statSync` are used for directory scanning, consistent with the existing checklist and contract folder implementations in the same codebase. For typical spec directories (< 50 files) this is negligible.
 **Scale/Scope**: Typically 1-20 extra files per spec directory; recursive folder depth unbounded but practically shallow (2-3 levels)
 
 ## Constitution Check

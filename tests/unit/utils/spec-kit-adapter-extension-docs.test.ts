@@ -217,4 +217,47 @@ describe("getSpecKitFeatureFiles - extension docs discovery", () => {
 
 		expect(files["extra-folder:v-model"]).toBe(vModelDir);
 	});
+
+	it("treats a folder named like a known doc as an extension subfolder", () => {
+		writeFileSync(join(tempFeatureDir, "spec.md"), MARKDOWN_CONTENT);
+		const specFolder = join(tempFeatureDir, "spec");
+		mkdirSync(specFolder);
+		writeFileSync(join(specFolder, "details.md"), MARKDOWN_CONTENT);
+
+		const files = adapter.getSpecFiles("001-test-feature");
+
+		expect(files).toHaveProperty("spec");
+		expect(files["extra-folder:spec"]).toBe(specFolder);
+	});
+
+	it("handles filenames with special characters", () => {
+		writeFileSync(join(tempFeatureDir, "spec.md"), MARKDOWN_CONTENT);
+		writeFileSync(
+			join(tempFeatureDir, "my (custom) doc.md"),
+			MARKDOWN_CONTENT
+		);
+
+		const files = adapter.getSpecFiles("001-test-feature");
+
+		expect(files["extra:my (custom) doc.md"]).toBeDefined();
+	});
+
+	it("skips symlink directories to prevent infinite recursion", () => {
+		const { symlinkSync } = require("node:fs");
+		writeFileSync(join(tempFeatureDir, "spec.md"), MARKDOWN_CONTENT);
+		const realDir = join(tempFeatureDir, "real-docs");
+		mkdirSync(realDir);
+		writeFileSync(join(realDir, "doc.md"), MARKDOWN_CONTENT);
+
+		try {
+			symlinkSync(realDir, join(tempFeatureDir, "link-docs"), "dir");
+		} catch {
+			// Symlinks may not be supported on all platforms; skip test
+			return;
+		}
+
+		const files = adapter.getSpecFiles("001-test-feature");
+
+		expect(files["extra-folder:real-docs"]).toBeDefined();
+	});
 });
