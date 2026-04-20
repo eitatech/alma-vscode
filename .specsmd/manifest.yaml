@@ -1,0 +1,10 @@
+flow: aidlc
+version: 0.1.65
+installed_at: '2026-04-14T13:09:04.191Z'
+tools:
+  - claude
+  - copilot
+  - antigravity
+  - windsurf
+  - gemini
+  - opencode

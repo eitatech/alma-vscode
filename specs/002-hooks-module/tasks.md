@@ -723,9 +723,9 @@ This document breaks down the Hooks Module implementation into prioritized, test
 - Update unit tests
 
 **Acceptance Criteria**:
-- [ ] Hooks execute in priority order
-- [ ] Priority editable in UI
-- [ ] Tests pass
+- [X] Hooks execute in priority order
+- [X] Priority editable in UI
+- [X] Tests pass
 
 ---
 
