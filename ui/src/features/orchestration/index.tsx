@@ -178,6 +178,18 @@ export function OrchestrationFeature(): JSX.Element {
 							>
 								Open Agent Chat
 							</button>
+							<button
+								className="rounded-md border border-[var(--vscode-panel-border)] px-3 py-2 text-sm"
+								onClick={() =>
+									vscode.postMessage({
+										type: "orchestration/open-existing-surface",
+										payload: { source: "cloud-agent" },
+									})
+								}
+								type="button"
+							>
+								Open Cloud Agents
+							</button>
 						</div>
 					</div>
 					{snapshot.degradedReasons.length > 0 ? (
@@ -185,6 +197,11 @@ export function OrchestrationFeature(): JSX.Element {
 							{snapshot.degradedReasons.join(" ")}
 						</div>
 					) : null}
+					<p className="mt-3 text-[var(--vscode-descriptionForeground)] text-xs">
+						Prototype view: active and recent sessions are grouped into lanes so
+						you can inspect status quickly and jump back to the underlying chat
+						or cloud surface.
+					</p>
 				</header>
 
 				{content}

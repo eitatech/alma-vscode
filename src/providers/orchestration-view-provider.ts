@@ -121,6 +121,9 @@ export class OrchestrationViewProvider implements WebviewViewProvider {
 				await this.pushSnapshot();
 				return;
 			case "orchestration/refresh":
+				await this.focusTreeView("gatomia.views.cloudAgents").catch(() => {
+					// best-effort
+				});
 				await commands
 					.executeCommand("gatomia.refreshCloudAgents")
 					.catch(() => {
@@ -148,9 +151,15 @@ export class OrchestrationViewProvider implements WebviewViewProvider {
 				const source = (message.payload as { source?: string } | undefined)
 					?.source;
 				if (source === "cloud-agent") {
+					await this.focusTreeView("gatomia.views.cloudAgents").catch(() => {
+						// best-effort
+					});
 					await commands.executeCommand("gatomia.refreshCloudAgents");
 					return;
 				}
+				await this.focusTreeView("gatomia.views.runningAgents").catch(() => {
+					// best-effort
+				});
 				await commands.executeCommand("gatomia.agentChat.openPanel");
 				return;
 			}
@@ -200,6 +209,10 @@ export class OrchestrationViewProvider implements WebviewViewProvider {
 		}
 
 		await commands.executeCommand("gatomia.refreshCloudAgents");
+	}
+
+	private async focusTreeView(viewId: string): Promise<void> {
+		await commands.executeCommand(`${viewId}.focus`);
 	}
 }
 
