@@ -1,0 +1,108 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.3.6/schema.json",
+  "vcs": {
+    "enabled": false,
+    "clientKind": "git",
+    "useIgnoreFile": false
+  },
+  "files": {
+    "includes": [
+      "src/**/*.ts",
+      "tests/**/*.ts",
+      "ui/src/**/*.ts",
+      "ui/src/**/*.tsx",
+      "!node_modules/**/*",
+      "!src/prompts/target/**/*",
+      "!ui/src/components/ui/**/*.tsx",
+      "!ui/src/app.css",
+      "!ui/node_modules/**/*",
+      "!.tmp/**/*",
+      "!.beads/**/*",
+      "!.claude/**/*",
+      "!.codex/**/*",
+      "!.vscode/**/*",
+      "!.agent_work/**/*",
+      "!specs/**/*",
+      "!references/**/*",
+      "!.mypy_cache/**/*",
+      "!.pytest_cache/**/*",
+      "!**/dist/**/*",
+      "!**/build/**/*",
+      "!**/out/**/*",
+      "!**/coverage/**/*",
+      "!**/coverage-*/**/*",
+      "!**/docs/**/*",
+      "!**/examples/**/*",
+      "!.specify/**/*",
+      "!.specify/extensions/**/*",
+      "!.specify/scripts/**/*",
+      "!.specify/templates/**/*",
+      "!.specify/workflows/**/*",
+      "!.specify/agents/**/*",
+      "!.specsmd/**/*",
+      "!.kiro/**/*",
+      "!.qoder/**/*",
+      "!.sonarlint/**/*",
+      "!.opencode/**/*",
+      "!.half/**/*"
+    ],
+    "ignoreUnknown": false
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "tab"
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "suspicious": {
+        "noImplicitAnyLet": "off",
+        "noAssignInExpressions": "off",
+        "noExplicitAny": "off",
+        "noConfusingVoidType": "off"
+      },
+      "style": {
+        "useNodejsImportProtocol": "off",
+        "noNonNullAssertion": "off",
+        "useConsistentTypeDefinitions": {
+          "level": "warn",
+          "options": {
+            "style": "interface"
+          }
+        }
+      },
+      "complexity": {
+        "noStaticOnlyClass": "off",
+        "noExcessiveCognitiveComplexity": "warn"
+      },
+      "correctness": {
+        "noUnusedFunctionParameters": "off",
+        "noUnusedVariables": "off",
+        "noUnusedPrivateClassMembers": "off"
+      },
+      "performance": {
+        "useTopLevelRegex": "warn",
+        "noBarrelFile": "off"
+      },
+      "a11y": {
+        "noSvgWithoutTitle": "warn"
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "double",
+      "semicolons": "always"
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "off"
+      }
+    }
+  },
+  "extends": ["ultracite/core"]
+}

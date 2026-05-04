@@ -1,0 +1,764 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { HookForm } from "../../../../ui/src/features/hooks-view/components/hook-form";
+import type { Hook } from "../../../../ui/src/features/hooks-view/types";
+
+const CREATE_HOOK_BUTTON = /Create Hook/i;
+const SAVE_CHANGES_BUTTON = /Save Changes/i;
+const CANCEL_BUTTON = /Cancel/i;
+const COMMAND_PLACEHOLDER = "/speckit.clarify --spec $specId";
+
+describe("HookForm", () => {
+	const mockOnSubmit = vi.fn();
+	const mockOnCancel = vi.fn();
+
+	const mockHook: Hook = {
+		id: "test-hook-1",
+		name: "Test Hook",
+		enabled: true,
+		events: [
+			{
+				type: "agent-operation",
+				agent: "speckit",
+				operation: "specify",
+				timing: "after",
+			},
+		],
+		conditions: [],
+		schedule: { type: "immediate" },
+		trigger: {
+			agent: "speckit",
+			operation: "specify",
+			timing: "after",
+		},
+		action: {
+			type: "agent",
+			parameters: {
+				command: "/speckit.clarify",
+			},
+		},
+		createdAt: new Date().toISOString(),
+		modifiedAt: new Date().toISOString(),
+		executionCount: 0,
+	};
+
+	beforeEach(() => {
+		mockOnSubmit.mockClear();
+		mockOnCancel.mockClear();
+	});
+
+	describe("Create Mode", () => {
+		it("renders create form with default values", () => {
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			expect(screen.getByText("Create Hook")).toBeInTheDocument();
+			expect(screen.getByLabelText("Name")).toHaveValue("");
+			expect(screen.getByLabelText("Enabled")).toBeChecked();
+			expect(screen.getByLabelText("Agent")).toHaveValue("speckit");
+			const [triggerOperationSelect] = screen.getAllByLabelText("Operation");
+			expect(triggerOperationSelect).toHaveValue("specify");
+			expect(screen.getByLabelText("Type")).toHaveValue("agent");
+		});
+
+		it("validates required name field", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(screen.getByText("Hook name is required")).toBeInTheDocument();
+			});
+			expect(mockOnSubmit).not.toHaveBeenCalled();
+		}, 15_000);
+
+		it("validates name length (max 100 characters)", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			await user.type(nameInput, "a".repeat(101));
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(
+					screen.getByText("Hook name must be 100 characters or less")
+				).toBeInTheDocument();
+			});
+			expect(mockOnSubmit).not.toHaveBeenCalled();
+		}, 30_000);
+
+		it("creates hook with valid data", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			await user.type(nameInput, "Auto-clarify after specify");
+
+			const commandInput = screen.getByPlaceholderText(COMMAND_PLACEHOLDER);
+			await user.type(commandInput, "/speckit.clarify");
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(mockOnSubmit).toHaveBeenCalledWith({
+					name: "Auto-clarify after specify",
+					enabled: true,
+					events: [
+						{
+							type: "agent-operation",
+							agent: "speckit",
+							operation: "specify",
+							timing: "after",
+						},
+					],
+					conditions: [],
+					schedule: { type: "immediate" },
+					trigger: {
+						agent: "speckit",
+						operation: "specify",
+						timing: "after",
+					},
+					action: {
+						type: "agent",
+						parameters: {
+							command: "/speckit.clarify",
+						},
+					},
+				});
+			});
+		}, 30_000);
+
+		it("calls onCancel when cancel button is clicked", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const cancelButton = screen.getByRole("button", { name: CANCEL_BUTTON });
+			await user.click(cancelButton);
+
+			expect(mockOnCancel).toHaveBeenCalled();
+		});
+	});
+
+	describe("Edit Mode", () => {
+		it("renders edit form with initial data", () => {
+			render(
+				<HookForm
+					initialData={mockHook}
+					mode="edit"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			expect(screen.getByText("Edit Hook")).toBeInTheDocument();
+			expect(screen.getByLabelText("Name")).toHaveValue("Test Hook");
+			expect(screen.getByLabelText("Enabled")).toBeChecked();
+			expect(screen.getByLabelText("Agent")).toHaveValue("speckit");
+			const [triggerOperationSelect] = screen.getAllByLabelText("Operation");
+			expect(triggerOperationSelect).toHaveValue("specify");
+			expect(screen.getByLabelText("Type")).toHaveValue("agent");
+		});
+
+		it("updates hook with modified data", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					initialData={mockHook}
+					mode="edit"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			await user.clear(nameInput);
+			await user.type(nameInput, "Updated Hook Name");
+
+			const submitButton = screen.getByRole("button", {
+				name: SAVE_CHANGES_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(mockOnSubmit).toHaveBeenCalledWith(
+					expect.objectContaining({
+						name: "Updated Hook Name",
+					})
+				);
+			});
+		});
+	});
+
+	describe("Agent Action Type", () => {
+		it("validates command is required", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			fireEvent.change(nameInput, { target: { value: "Test Hook" } });
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				const errorMessages = screen.getAllByText("Command is required");
+				expect(errorMessages.length).toBeGreaterThan(0);
+			});
+		});
+
+		it("validates command format (must start with /speckit. or /openspec.)", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			fireEvent.change(nameInput, { target: { value: "Test Hook" } });
+
+			const commandInput = screen.getByPlaceholderText(COMMAND_PLACEHOLDER);
+			await user.type(commandInput, "/invalid.command");
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				const errorMessages = screen.getAllByText(
+					"Command must start with /speckit. or /openspec."
+				);
+				expect(errorMessages.length).toBeGreaterThan(0);
+			});
+		});
+
+		it("validates command length (max 200 characters)", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			fireEvent.change(nameInput, { target: { value: "Test Hook" } });
+
+			const commandInput = screen.getByPlaceholderText(COMMAND_PLACEHOLDER);
+			await user.type(commandInput, `/speckit.${"a".repeat(200)}`);
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				const errorMessages = screen.getAllByText(
+					"Command must be 200 characters or less"
+				);
+				expect(errorMessages.length).toBeGreaterThan(0);
+			});
+		}, 15_000);
+	});
+
+	describe("Git Action Type", () => {
+		it("renders git action fields when type is changed to git", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const actionTypeSelect = screen.getByLabelText("Type");
+			await user.selectOptions(actionTypeSelect, "git");
+
+			await waitFor(() => {
+				const [, actionOperationSelect] = screen.getAllByLabelText("Operation");
+				expect(actionOperationSelect).toBeInTheDocument();
+				expect(screen.getByLabelText("Message Template")).toBeInTheDocument();
+				expect(
+					screen.getByLabelText("Push to remote after commit")
+				).toBeInTheDocument();
+			});
+		});
+
+		it("validates message template is required for git action", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			fireEvent.change(nameInput, { target: { value: "Test Hook" } });
+
+			const actionTypeSelect = screen.getByLabelText("Type");
+			await user.selectOptions(actionTypeSelect, "git");
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(
+					screen.getByText("Commit message template is required")
+				).toBeInTheDocument();
+			});
+		});
+
+		it("validates message template length (max 500 characters)", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			fireEvent.change(nameInput, { target: { value: "Test Hook" } });
+
+			const actionTypeSelect = screen.getByLabelText("Type");
+			await user.selectOptions(actionTypeSelect, "git");
+
+			const messageTemplateInput = screen.getByLabelText("Message Template");
+			fireEvent.change(messageTemplateInput, {
+				target: { value: "a".repeat(501) },
+			});
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(
+					screen.getByText("Message template must be 500 characters or less")
+				).toBeInTheDocument();
+			});
+		});
+
+		it("creates hook with git action", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			await user.type(nameInput, "Auto-commit");
+
+			const actionTypeSelect = screen.getByLabelText("Type");
+			await user.selectOptions(actionTypeSelect, "git");
+
+			const messageTemplateInput = screen.getByLabelText("Message Template");
+			fireEvent.change(messageTemplateInput, {
+				target: { value: "feat({feature}): automated update" },
+			});
+
+			const pushCheckbox = screen.getByLabelText("Push to remote after commit");
+			await user.click(pushCheckbox);
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(mockOnSubmit).toHaveBeenCalledWith({
+					name: "Auto-commit",
+					enabled: true,
+					events: [
+						{
+							type: "agent-operation",
+							agent: "speckit",
+							operation: "specify",
+							timing: "after",
+						},
+					],
+					conditions: [],
+					schedule: { type: "immediate" },
+					trigger: {
+						agent: "speckit",
+						operation: "specify",
+						timing: "after",
+					},
+					action: {
+						type: "git",
+						parameters: {
+							operation: "commit",
+							messageTemplate: "feat({feature}): automated update",
+							pushToRemote: true,
+						},
+					},
+				});
+			});
+		});
+	});
+
+	describe("GitHub Action Type", () => {
+		it("renders github action fields when type is changed to github", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const actionTypeSelect = screen.getByLabelText("Type");
+			await user.selectOptions(actionTypeSelect, "github");
+
+			await waitFor(() => {
+				const [, actionOperationSelect] = screen.getAllByLabelText("Operation");
+				expect(actionOperationSelect).toBeInTheDocument();
+				expect(screen.getByLabelText("Repository")).toBeInTheDocument();
+			});
+		});
+
+		it("validates title is required for open-issue operation", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			await user.type(nameInput, "Test Hook");
+
+			const actionTypeSelect = screen.getByLabelText("Type");
+			await user.selectOptions(actionTypeSelect, "github");
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(
+					screen.getByText("Title is required for this operation")
+				).toBeInTheDocument();
+			});
+		});
+
+		it("validates issue number is required for close-issue operation", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			await user.type(nameInput, "Test Hook");
+
+			const actionTypeSelect = screen.getByLabelText("Type");
+			await user.selectOptions(actionTypeSelect, "github");
+
+			const [, operationSelect] = screen.getAllByLabelText("Operation");
+			await user.selectOptions(operationSelect, "close-issue");
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(
+					screen.getByText("Issue number is required for this operation")
+				).toBeInTheDocument();
+			});
+		});
+
+		it("validates title length (max 200 characters)", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			await user.type(nameInput, "Test Hook");
+
+			const actionTypeSelect = screen.getByLabelText("Type");
+			await user.selectOptions(actionTypeSelect, "github");
+
+			const titleInput = screen.getByLabelText("Title");
+			fireEvent.change(titleInput, { target: { value: "a".repeat(201) } });
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(
+					screen.getByText("Title must be 200 characters or less")
+				).toBeInTheDocument();
+			});
+		});
+
+		it("validates body length (max 5000 characters)", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			fireEvent.change(nameInput, { target: { value: "Test Hook" } });
+
+			const actionTypeSelect = screen.getByLabelText("Type");
+			await user.selectOptions(actionTypeSelect, "github");
+
+			const titleInput = screen.getByLabelText("Title");
+			fireEvent.change(titleInput, { target: { value: "Valid title" } });
+
+			const bodyInput = screen.getByLabelText("Body");
+			fireEvent.change(bodyInput, { target: { value: "a".repeat(5001) } });
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(
+					screen.getByText("Body must be 5000 characters or less")
+				).toBeInTheDocument();
+			});
+		});
+
+		it("creates hook with github open-issue action", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			fireEvent.change(nameInput, { target: { value: "Auto-create-issue" } });
+
+			const actionTypeSelect = screen.getByLabelText("Type");
+			await user.selectOptions(actionTypeSelect, "github");
+
+			const titleInput = screen.getByLabelText("Title");
+			fireEvent.change(titleInput, {
+				target: { value: "Spec created for {feature}" },
+			});
+
+			const bodyInput = screen.getByLabelText("Body");
+			fireEvent.change(bodyInput, {
+				target: { value: "Created at {timestamp}" },
+			});
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(mockOnSubmit).toHaveBeenCalledWith({
+					name: "Auto-create-issue",
+					enabled: true,
+					events: [
+						{
+							type: "agent-operation",
+							agent: "speckit",
+							operation: "specify",
+							timing: "after",
+						},
+					],
+					conditions: [],
+					schedule: { type: "immediate" },
+					trigger: {
+						agent: "speckit",
+						operation: "specify",
+						timing: "after",
+					},
+					action: {
+						type: "github",
+						parameters: {
+							operation: "open-issue",
+							titleTemplate: "Spec created for {feature}",
+							bodyTemplate: "Created at {timestamp}",
+						},
+					},
+				});
+			});
+		});
+	});
+
+	// Custom Action Type tests removed - UI changed from text input to agent dropdown
+	// Tests were validating "Agent Name" text field which no longer exists
+	// New UI uses AgentDropdown component with AgentRegistry integration
+
+	describe("Error Handling", () => {
+		// Error display removed from HookForm - errors are now shown only in parent component (HooksView)
+		// This prevents duplicate error messages from appearing to the user
+
+		it("clears field errors when input is corrected", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(screen.getByText("Hook name is required")).toBeInTheDocument();
+			});
+
+			const nameInput = screen.getByLabelText("Name");
+			await user.type(nameInput, "Valid name");
+
+			await waitFor(() => {
+				expect(
+					screen.queryByText("Hook name is required")
+				).not.toBeInTheDocument();
+			});
+		});
+	});
+
+	describe("Form State", () => {
+		it("disables form inputs while submitting", async () => {
+			const user = userEvent.setup();
+			const slowOnSubmit = vi.fn(
+				() => new Promise((resolve) => setTimeout(resolve, 100))
+			);
+
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={slowOnSubmit}
+				/>
+			);
+
+			const nameInput = screen.getByLabelText("Name");
+			await user.type(nameInput, "Test Hook");
+
+			const commandInput = screen.getByPlaceholderText(COMMAND_PLACEHOLDER);
+			await user.type(commandInput, "/speckit.clarify");
+
+			const submitButton = screen.getByRole("button", {
+				name: CREATE_HOOK_BUTTON,
+			});
+			await user.click(submitButton);
+
+			await waitFor(() => {
+				expect(screen.getByLabelText("Name")).toBeDisabled();
+				expect(screen.getByLabelText("Enabled")).toBeDisabled();
+				expect(submitButton).toBeDisabled();
+				expect(submitButton).toHaveTextContent("Saving...");
+			});
+		});
+
+		it("toggles enabled checkbox", async () => {
+			const user = userEvent.setup();
+			render(
+				<HookForm
+					mode="create"
+					onCancel={mockOnCancel}
+					onSubmit={mockOnSubmit}
+				/>
+			);
+
+			const enabledCheckbox = screen.getByLabelText("Enabled");
+			expect(enabledCheckbox).toBeChecked();
+
+			await user.click(enabledCheckbox);
+			expect(enabledCheckbox).not.toBeChecked();
+
+			await user.click(enabledCheckbox);
+			expect(enabledCheckbox).toBeChecked();
+		});
+	});
+});
