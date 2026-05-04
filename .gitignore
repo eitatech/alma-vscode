@@ -1,0 +1,49 @@
+node_modules/
+dist/
+out/
+build/
+*.vsix
+.vscode-test/
+*.log
+.DS_Store
+.env
+.env.local
+.env.*
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+
+coverage/
+*.snap.tmp
+.nyc_output/
+
+.tmp
+.repomix
+repomix-output*
+
+.serena
+.codex
+.agent_work/
+.vscode/
+.envrc
+.claude/
+test-results2.txt
+test-results3.txt
+.gitignore
+test-results4.txt
+.grok/settings.json
+.opencode/bun.lockb**/CLAUDE.md
+mise.toml
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+
+# Agent Chat Panel per-session git worktrees (feature 018-agent-chat-panel).
+# Worktrees are created on demand under .gatomia/worktrees/<session-id>/ and
+# are never auto-deleted; ignore them so accidental commits of worktree
+# directories never land in the primary checkout.
+.gatomia/worktrees/
