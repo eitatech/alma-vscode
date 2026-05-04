@@ -1,0 +1,81 @@
+# --- VS Code tooling -----------------------------------------------------
+.vscode/**
+.vscode-test/**
+.vscodeignore
+
+# --- Source, tests, build tooling ---------------------------------------
+src/**
+!src/resources/**
+src/**/*.js
+tests/**
+scripts/**
+ui/**
+docs/**
+coverage/**
+screenshots/**
+dist/__tests__/**
+webpack.config.js
+jest.config.js
+*.test.ts
+*.test.js
+**/*.map
+**/*.ts
+**/tsconfig.json
+tsconfig.test.json
+**/.eslintrc.json
+
+# --- Dependency trees (keep only codicons) ------------------------------
+node_modules/**
+!node_modules/@vscode/codicons/**
+
+# --- Dotfile directories (agent configs, lock databases, IDE metadata) --
+# Several of these contain symlinks to `.agents/skills/*` — including them
+# would crash vsce's secret scanner with EISDIR.
+.agent/**
+.agents/**
+.amazonq/**
+.beads/**
+.claude/**
+.codex/**
+.crush/**
+.gemini/**
+.git/**
+**/.git/**
+.github/**
+.husky/**
+.junie/**
+.kiro/**
+.opencode/**
+.qoder/**
+.repomix/**
+.serena/**
+.sonarlint/**
+.specify/**
+.specsmd/**
+.tmp/**
+.windsurf/**
+.yarnrc
+.gitignore
+.DS_Store
+
+# --- Project artefacts that must not ship -------------------------------
+specs/**
+openspec/**
+temp/**
+**/temp/**
+*.vsix
+*.log
+dist.zip
+repomix-output*
+!media/**
+
+# --- Agent-specific markdown & lockfiles --------------------------------
+AGENTS.md
+CLAUDE.md
+GEMINI.md
+QODER.md
+README*.md
+vsc-extension-quickstart.md
+bun.lock
+skills-lock.json
+mise.toml
