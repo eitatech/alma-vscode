@@ -1,0 +1,35 @@
+# Use LF for all text files by default
+* text=auto eol=lf
+
+# Explicit rules for specific file types
+# Windows batch files should use CRLF
+*.bat text eol=crlf
+# PowerShell scripts should use CRLF
+*.ps1 text eol=crlf
+# Shell scripts should use LF
+*.sh  text eol=lf
+# TypeScript files should use LF
+*.ts  text eol=lf
+# JavaScript files should use LF
+*.js  text eol=lf
+# JSON files should use LF
+*.json text eol=lf
+# YAML files should use LF
+*.yml  text eol=lf
+*.yaml text eol=lf
+# Markdown files should use LF
+*.md   text eol=lf
+
+# Do not perform line ending conversions on binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.exe binary
+*.dll binary
+
+# Use bd merge for beads JSONL files
+.beads/issues.jsonl merge=beads
