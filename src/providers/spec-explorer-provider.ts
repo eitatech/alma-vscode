@@ -1,0 +1,1235 @@
+import {
+	type Command,
+	type Event,
+	type ExtensionContext,
+	type TreeDataProvider,
+	EventEmitter,
+	ThemeColor,
+	ThemeIcon,
+	TreeItem,
+	TreeItemCollapsibleState,
+	workspace,
+} from "vscode";
+import type {
+	ChangeRequestStatus,
+	Specification,
+} from "../features/spec/review-flow/types";
+import type { SpecManager } from "../features/spec/spec-manager";
+import { SPEC_SYSTEM_MODE, type SpecSystemMode } from "../constants";
+import {
+	getSpecState,
+	onReviewFlowStateChange,
+} from "../features/spec/review-flow/state";
+import { getSpecSystemAdapter } from "../utils/spec-kit-adapter";
+import { basename, join } from "node:path";
+import {
+	parseTasksFromFile,
+	getTaskStatusIcon,
+	getTaskStatusTooltip,
+	getGroupStatusIcon,
+	calculateGroupStatus,
+	calculateOverallStatus,
+	type ParsedTask,
+	type TaskStatus,
+} from "../utils/task-parser";
+import { getChecklistStatusFromFile } from "../utils/checklist-parser";
+
+const MARKDOWN_EXTENSION_PATTERN = /\.md$/;
+const SPEC_FILE_WATCHER_DEBOUNCE_MS = 2000;
+const SPEC_FILE_WATCHER_GLOB = "**/specs/**/*.md";
+
+export class SpecExplorerProvider implements TreeDataProvider<SpecItem> {
+	static readonly viewId = "gatomia.views.specExplorer";
+	static readonly navigateRequirementsCommandId =
+		"gatomia.spec.navigate.requirements";
+	static readonly navigateDesignCommandId = "gatomia.spec.navigate.design";
+	static readonly navigateTasksCommandId = "gatomia.spec.navigate.tasks";
+	static readonly openSpecCommandId = "gatomia.spec.open";
+
+	private readonly _onDidChangeTreeData: EventEmitter<
+		SpecItem | undefined | null | void
+	> = new EventEmitter<SpecItem | undefined | null | void>();
+	readonly onDidChangeTreeData: Event<SpecItem | undefined | null | void> =
+		this._onDidChangeTreeData.event;
+
+	private specManager!: SpecManager;
+	private readonly context: ExtensionContext;
+	private debounceTimer: ReturnType<typeof setTimeout> | undefined;
+
+	constructor(context: ExtensionContext) {
+		this.context = context;
+		// Listen for review flow state changes (e.g. status updates, change requests)
+		// and refresh the tree view to reflect the new state.
+		context.subscriptions.push(
+			onReviewFlowStateChange(() => {
+				this.refresh();
+			})
+		);
+
+		// Watch for spec file changes and refresh tree with debounce
+		const watcher = workspace.createFileSystemWatcher(SPEC_FILE_WATCHER_GLOB);
+		const debouncedRefresh = () => {
+			if (this.debounceTimer) {
+				clearTimeout(this.debounceTimer);
+			}
+			this.debounceTimer = setTimeout(() => {
+				this.refresh();
+			}, SPEC_FILE_WATCHER_DEBOUNCE_MS);
+		};
+		watcher.onDidCreate(debouncedRefresh);
+		watcher.onDidChange(debouncedRefresh);
+		watcher.onDidDelete(debouncedRefresh);
+		context.subscriptions.push(watcher);
+	}
+
+	private createSpecItem(
+		label: string,
+		specId: string,
+		system?: SpecSystemMode
+	): SpecItem {
+		const item = new SpecItem(
+			label,
+			TreeItemCollapsibleState.Collapsed,
+			"spec-current",
+			this.context,
+			specId,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			system
+		);
+		const state = getSpecState(specId);
+		if (state) {
+			const reviewExitTooltip = this.getReviewExitTooltip(state);
+			if (reviewExitTooltip) {
+				item.tooltip = reviewExitTooltip;
+			}
+		}
+		return item;
+	}
+
+	private createReviewSpecItem(
+		label: string,
+		specId: string,
+		system?: SpecSystemMode
+	): SpecItem {
+		const item = new SpecItem(
+			label,
+			TreeItemCollapsibleState.Collapsed,
+			"spec-review",
+			this.context,
+			specId,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			system
+		);
+		const state = getSpecState(specId);
+		if (state) {
+			item.description = this.describeReviewSpec(state);
+		} else {
+			item.description = "Awaiting review metadata";
+		}
+		return item;
+	}
+
+	private createArchivedSpecItem(
+		label: string,
+		specId: string,
+		system?: SpecSystemMode
+	): SpecItem {
+		const item = new SpecItem(
+			label,
+			TreeItemCollapsibleState.Collapsed,
+			"spec-archived",
+			this.context,
+			specId,
+			undefined,
+			undefined,
+			undefined,
+			undefined,
+			system
+		);
+		const state = getSpecState(specId);
+		if (state?.archivedAt) {
+			item.description = `Archived ${state.archivedAt.toLocaleDateString()}`;
+		} else {
+			item.description = "Archived";
+		}
+		return item;
+	}
+
+	private describeReviewSpec(state: Specification): string {
+		const pendingTasks = state.pendingTasks ?? 0;
+		const pendingChecklistItems = state.pendingChecklistItems ?? 0;
+		const openChangeRequests =
+			state.changeRequests?.filter((cr) => cr.status !== "addressed").length ??
+			0;
+		const parts: string[] = [];
+		if (pendingTasks > 0) {
+			parts.push(`${pendingTasks} task${pendingTasks === 1 ? "" : "s"}`);
+		}
+		if (pendingChecklistItems > 0) {
+			parts.push(
+				`${pendingChecklistItems} checklist item${pendingChecklistItems === 1 ? "" : "s"}`
+			);
+		}
+		if (openChangeRequests > 0) {
+			parts.push(
+				`${openChangeRequests} change request${openChangeRequests === 1 ? "" : "s"}`
+			);
+		}
+		return parts.length > 0 ? parts.join(" | ") : "Ready for reviewers";
+	}
+
+	private getReviewExitTooltip(state: Specification): string | null {
+		if (!(state.status === "current" || state.status === "reopened")) {
+			return null;
+		}
+		if (!state.reviewEnteredAt) {
+			return null;
+		}
+		const pendingTasks = state.pendingTasks ?? 0;
+		const pendingChecklistItems = state.pendingChecklistItems ?? 0;
+		if (pendingTasks === 0 && pendingChecklistItems === 0) {
+			return null;
+		}
+		const parts: string[] = [];
+		if (pendingTasks > 0) {
+			parts.push(`${pendingTasks} task${pendingTasks === 1 ? "" : "s"}`);
+		}
+		if (pendingChecklistItems > 0) {
+			parts.push(
+				`${pendingChecklistItems} checklist item${pendingChecklistItems === 1 ? "" : "s"}`
+			);
+		}
+		return `Returned from Review: ${parts.join(" | ")}`;
+	}
+
+	setSpecManager(specManager: SpecManager) {
+		this.specManager = specManager;
+	}
+
+	refresh(): void {
+		this._onDidChangeTreeData.fire();
+	}
+
+	getTreeItem(element: SpecItem): TreeItem {
+		return element;
+	}
+
+	/**
+	 * Calculate aggregate status for all checklists in a folder
+	 */
+	private async calculateChecklistsFolderStatus(
+		folderPath: string
+	): Promise<TaskStatus> {
+		try {
+			const { readdirSync, statSync } = await import("node:fs");
+			const entries = readdirSync(folderPath);
+
+			let totalItems = 0;
+			let completedItems = 0;
+
+			for (const entry of entries) {
+				if (entry.endsWith(".md")) {
+					const filePath = join(folderPath, entry);
+					const stat = statSync(filePath);
+
+					if (stat.isFile()) {
+						const status = getChecklistStatusFromFile(filePath);
+						totalItems += status.total;
+						completedItems += status.completed;
+					}
+				}
+			}
+
+			if (totalItems === 0) {
+				return "not-started";
+			}
+
+			if (completedItems === totalItems) {
+				return "completed";
+			}
+
+			if (completedItems > 0) {
+				return "in-progress";
+			}
+
+			return "not-started";
+		} catch {
+			return "not-started";
+		}
+	}
+
+	// biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Tree provider maps multiple node types without a simpler branching model.
+	async getChildren(element?: SpecItem): Promise<SpecItem[]> {
+		if (!(workspace.workspaceFolders && this.specManager)) {
+			return [];
+		}
+
+		if (!element) {
+			return [
+				new SpecItem(
+					"Current Specs",
+					TreeItemCollapsibleState.Expanded,
+					"group-current-specs",
+					this.context
+				),
+				new SpecItem(
+					"Review",
+					TreeItemCollapsibleState.Expanded,
+					"group-review-specs",
+					this.context
+				),
+				new SpecItem(
+					"Archived",
+					TreeItemCollapsibleState.Expanded,
+					"group-archived-specs",
+					this.context
+				),
+				new SpecItem(
+					"Changes",
+					TreeItemCollapsibleState.Expanded,
+					"group-changes",
+					this.context
+				),
+			];
+		}
+
+		const unifiedSpecs = await this.specManager.getAllSpecsUnified();
+
+		if (element.contextValue === "group-current-specs") {
+			return unifiedSpecs
+				.filter((spec) => {
+					const state = getSpecState(spec.id);
+					return (
+						!state || state.status === "current" || state.status === "reopened"
+					);
+				})
+				.map((spec) => this.createSpecItem(spec.name, spec.id, spec.system));
+		}
+
+		if (element.contextValue === "group-review-specs") {
+			return unifiedSpecs
+				.filter((spec) => getSpecState(spec.id)?.status === "review")
+				.map((spec) =>
+					this.createReviewSpecItem(spec.name, spec.id, spec.system)
+				);
+		}
+
+		if (element.contextValue === "group-archived-specs") {
+			return unifiedSpecs
+				.filter((spec) => getSpecState(spec.id)?.status === "archived")
+				.map((spec) =>
+					this.createArchivedSpecItem(spec.name, spec.id, spec.system)
+				);
+		}
+
+		if (element.contextValue === "group-changes") {
+			const activeChangeRequests =
+				await this.specManager.getActiveChangeRequests();
+			return activeChangeRequests.map(
+				({ specId, specTitle, changeRequest }) => {
+					const item = new SpecItem(
+						changeRequest.title,
+						TreeItemCollapsibleState.None,
+						"change-request",
+						this.context,
+						specId,
+						undefined,
+						undefined,
+						undefined,
+						changeRequest.id
+					);
+					// Pass the change request and spec title for enhanced display
+					item.changeRequest = changeRequest;
+					item.specTitle = specTitle;
+					return item;
+				}
+			);
+		}
+
+		if (
+			element.contextValue === "spec" ||
+			element.contextValue === "spec-current" ||
+			element.contextValue === "spec-review" ||
+			element.contextValue === "spec-archived"
+		) {
+			// Handle SpecKit System
+			if (element.system === SPEC_SYSTEM_MODE.SPECKIT) {
+				const adapter = getSpecSystemAdapter();
+				// Get files for this spec (returns absolute paths)
+				const files = adapter.getSpecFiles(element.specName!);
+
+				const items: SpecItem[] = [];
+
+				// Map of filenames to display labels and types
+				const fileMap: Record<string, { label: string; type: string }> = {
+					"spec.md": { label: "Spec", type: "spec" },
+					"plan.md": { label: "Plan", type: "plan" },
+					"design.md": { label: "Design", type: "design" },
+					"requirements.md": { label: "Requirements", type: "requirements" },
+					"research.md": { label: "Research", type: "research" },
+					"data-model.md": { label: "Data Model", type: "data-model" },
+					"quickstart.md": { label: "Quickstart", type: "quickstart" },
+				};
+
+				const extraEntries: [string, string][] = [];
+
+				for (const [docType, absolutePath] of Object.entries(files)) {
+					// Collect extra files and folders for later (sorted after known docs)
+					if (
+						docType.startsWith("extra:") ||
+						docType.startsWith("extra-folder:")
+					) {
+						extraEntries.push([docType, absolutePath]);
+						continue;
+					}
+
+					const fileName = basename(absolutePath);
+
+					// Handle tasks.md as a folder with task items
+					if (fileName === "tasks.md") {
+						const relativePath = workspace.asRelativePath(absolutePath);
+						// Calculate overall status for tasks folder
+						const taskGroups = parseTasksFromFile(absolutePath);
+						const overallStatus = calculateOverallStatus(taskGroups);
+						items.push(
+							new SpecItem(
+								"Tasks",
+								TreeItemCollapsibleState.Collapsed,
+								"tasks-folder",
+								this.context,
+								element.specName,
+								"tasks",
+								undefined,
+								relativePath,
+								undefined,
+								element.system,
+								undefined,
+								overallStatus
+							)
+						);
+						continue;
+					}
+
+					// Handle checklists folder
+					if (docType === "checklists") {
+						const relativePath = workspace.asRelativePath(absolutePath);
+						// Calculate overall status for checklists folder
+						const checklistsStatus =
+							await this.calculateChecklistsFolderStatus(absolutePath);
+						items.push(
+							new SpecItem(
+								"Checklists",
+								TreeItemCollapsibleState.Collapsed,
+								"checklists-folder",
+								this.context,
+								element.specName,
+								"checklists",
+								undefined,
+								relativePath,
+								undefined,
+								element.system,
+								undefined,
+								checklistsStatus
+							)
+						);
+						continue;
+					}
+
+					// Handle contracts folder
+					if (docType === "contracts") {
+						const relativePath = workspace.asRelativePath(absolutePath);
+						items.push(
+							new SpecItem(
+								"Contracts",
+								TreeItemCollapsibleState.Collapsed,
+								"contracts-folder",
+								this.context,
+								element.specName,
+								"contracts",
+								undefined,
+								relativePath,
+								undefined,
+								element.system
+							)
+						);
+						continue;
+					}
+
+					const fileInfo = fileMap[fileName] || {
+						label: fileName,
+						type: "file",
+					};
+
+					// Convert absolute path to relative path for the command
+					const relativePath = workspace.asRelativePath(absolutePath);
+
+					items.push(
+						new SpecItem(
+							fileInfo.label,
+							TreeItemCollapsibleState.None,
+							"spec-document",
+							this.context,
+							element.specName,
+							fileInfo.type,
+							{
+								command: SpecExplorerProvider.openSpecCommandId,
+								title: `Open ${fileInfo.label}`,
+								arguments: [relativePath, fileInfo.type],
+							},
+							relativePath
+						)
+					);
+				}
+
+				// Append extension-generated documents sorted alphabetically
+				const extraFileEntries = extraEntries
+					.filter(([key]) => key.startsWith("extra:"))
+					.sort((a, b) => a[0].localeCompare(b[0]));
+				for (const [docType, absolutePath] of extraFileEntries) {
+					const fileName = docType.slice("extra:".length);
+					const displayName = fileName.replace(MARKDOWN_EXTENSION_PATTERN, "");
+					const formattedName =
+						displayName.charAt(0).toUpperCase() +
+						displayName.slice(1).replace(/-/g, " ");
+					const relativePath = workspace.asRelativePath(absolutePath);
+
+					items.push(
+						new SpecItem(
+							formattedName,
+							TreeItemCollapsibleState.None,
+							"extension-document",
+							this.context,
+							element.specName,
+							"extension-document",
+							{
+								command: SpecExplorerProvider.openSpecCommandId,
+								title: `Open ${formattedName}`,
+								arguments: [relativePath, "extension-document"],
+							},
+							relativePath,
+							undefined,
+							element.system
+						)
+					);
+				}
+
+				// Log extension document discovery for observability
+				if (extraEntries.length > 0) {
+					const fileCount = extraEntries.filter(([k]) =>
+						k.startsWith("extra:")
+					).length;
+					const folderCount = extraEntries.filter(([k]) =>
+						k.startsWith("extra-folder:")
+					).length;
+					console.debug(
+						`[GatomIA] Spec "${element.specName}": discovered ${fileCount} extension document(s), ${folderCount} extension folder(s)`
+					);
+				}
+
+				// Append extension folders sorted alphabetically after extra documents
+				const extraFolderEntries = extraEntries
+					.filter(([key]) => key.startsWith("extra-folder:"))
+					.sort((a, b) => a[0].localeCompare(b[0]));
+				for (const [docType, absolutePath] of extraFolderEntries) {
+					const folderName = docType.slice("extra-folder:".length);
+					const formattedName =
+						folderName.charAt(0).toUpperCase() +
+						folderName.slice(1).replace(/-/g, " ");
+					const relativePath = workspace.asRelativePath(absolutePath);
+
+					items.push(
+						new SpecItem(
+							formattedName,
+							TreeItemCollapsibleState.Collapsed,
+							"extension-folder",
+							this.context,
+							element.specName,
+							"extension-folder",
+							undefined,
+							relativePath,
+							undefined,
+							element.system
+						)
+					);
+				}
+
+				return items;
+			}
+
+			// Handle OpenSpec System
+			const specPath = `openspec/specs/${element.specName}/spec.md`;
+			return [
+				new SpecItem(
+					"Spec",
+					TreeItemCollapsibleState.None,
+					"spec-document",
+					this.context,
+					element.specName,
+					"spec",
+					{
+						command: SpecExplorerProvider.openSpecCommandId,
+						title: "Open Spec",
+						arguments: [specPath, "spec"],
+					},
+					specPath
+				),
+			];
+		}
+
+		// Handle tasks folder - show task groups and tasks
+		if (element.contextValue === "tasks-folder") {
+			const tasksFilePath = element.filePath;
+			if (!tasksFilePath) {
+				return [];
+			}
+
+			// Get absolute path
+			const workspaceRoot = workspace.workspaceFolders?.[0].uri.fsPath;
+			if (!workspaceRoot) {
+				return [];
+			}
+
+			const absolutePath = join(workspaceRoot, tasksFilePath);
+			const taskGroups = parseTasksFromFile(absolutePath);
+
+			if (taskGroups.length === 0) {
+				return [];
+			}
+
+			// Return task groups as collapsible items
+			return taskGroups.map((group) => {
+				const groupStatus = calculateGroupStatus(group.tasks);
+				return new SpecItem(
+					group.name,
+					TreeItemCollapsibleState.Collapsed,
+					"task-group",
+					this.context,
+					element.specName,
+					"task-group",
+					undefined, // No command - clicking only expands/collapses
+					tasksFilePath,
+					group.name,
+					element.system,
+					undefined,
+					groupStatus
+				);
+			});
+		}
+
+		// Handle task group - show individual tasks
+		if (element.contextValue === "task-group") {
+			const tasksFilePath = element.filePath;
+			const groupName = element.parentName;
+			if (!(tasksFilePath && groupName)) {
+				return [];
+			}
+
+			// Get absolute path
+			const workspaceRoot = workspace.workspaceFolders?.[0].uri.fsPath;
+			if (!workspaceRoot) {
+				return [];
+			}
+
+			const absolutePath = join(workspaceRoot, tasksFilePath);
+			const taskGroups = parseTasksFromFile(absolutePath);
+
+			// Find the matching group
+			const group = taskGroups.find((g) => g.name === groupName);
+			if (!group) {
+				return [];
+			}
+
+			// Return individual tasks
+			return group.tasks.map(
+				(task) =>
+					new SpecItem(
+						`${task.id}: ${task.title}`,
+						TreeItemCollapsibleState.None,
+						"task-item",
+						this.context,
+						element.specName,
+						"task",
+						{
+							command: SpecExplorerProvider.openSpecCommandId,
+							title: "Open Tasks",
+							arguments: [tasksFilePath, "tasks", task.line],
+						},
+						tasksFilePath,
+						undefined,
+						element.system,
+						task
+					)
+			);
+		}
+
+		// Handle checklists folder - show individual checklist files
+		if (element.contextValue === "checklists-folder") {
+			const checklistsFolderPath = element.filePath;
+			if (!checklistsFolderPath) {
+				return [];
+			}
+
+			// Get absolute path
+			const workspaceRoot = workspace.workspaceFolders?.[0].uri.fsPath;
+			if (!workspaceRoot) {
+				return [];
+			}
+
+			const absolutePath = join(workspaceRoot, checklistsFolderPath);
+
+			try {
+				const { readdirSync, statSync } = await import("node:fs");
+				const entries = readdirSync(absolutePath);
+				const checklistItems: SpecItem[] = [];
+
+				for (const entry of entries) {
+					if (entry.endsWith(".md")) {
+						const filePath = join(absolutePath, entry);
+						const stat = statSync(filePath);
+
+						if (stat.isFile()) {
+							const relativePath = workspace.asRelativePath(filePath);
+							const displayName = entry.replace(MARKDOWN_EXTENSION_PATTERN, "");
+							const formattedName =
+								displayName.charAt(0).toUpperCase() +
+								displayName.slice(1).replace(/-/g, " ");
+
+							// Calculate checklist status for icon
+							const checklistStatus = getChecklistStatusFromFile(filePath);
+
+							checklistItems.push(
+								new SpecItem(
+									formattedName,
+									TreeItemCollapsibleState.None,
+									"checklist-item",
+									this.context,
+									element.specName,
+									"checklist",
+									{
+										command: SpecExplorerProvider.openSpecCommandId,
+										title: `Open ${formattedName}`,
+										arguments: [relativePath, "checklist"],
+									},
+									relativePath,
+									undefined,
+									element.system,
+									undefined,
+									checklistStatus.status
+								)
+							);
+						}
+					}
+				}
+
+				return checklistItems;
+			} catch (error) {
+				console.error("Error reading checklists folder:", error);
+				return [];
+			}
+		}
+
+		// Handle contracts folder - show individual contract files
+		if (element.contextValue === "contracts-folder") {
+			const contractsFolderPath = element.filePath;
+			if (!contractsFolderPath) {
+				return [];
+			}
+
+			const workspaceRoot = workspace.workspaceFolders?.[0].uri.fsPath;
+			if (!workspaceRoot) {
+				return [];
+			}
+
+			const absolutePath = join(workspaceRoot, contractsFolderPath);
+
+			try {
+				const { readdirSync, statSync } = await import("node:fs");
+				const entries = readdirSync(absolutePath);
+				const contractItems: SpecItem[] = [];
+
+				for (const entry of entries) {
+					const filePath = join(absolutePath, entry);
+					const stat = statSync(filePath);
+
+					if (stat.isFile()) {
+						const relativePath = workspace.asRelativePath(filePath);
+						const displayName = entry.replace(MARKDOWN_EXTENSION_PATTERN, "");
+						const formattedName =
+							displayName.charAt(0).toUpperCase() +
+							displayName.slice(1).replace(/-/g, " ");
+
+						contractItems.push(
+							new SpecItem(
+								formattedName,
+								TreeItemCollapsibleState.None,
+								"contract-item",
+								this.context,
+								element.specName,
+								"contract",
+								{
+									command: SpecExplorerProvider.openSpecCommandId,
+									title: `Open ${formattedName}`,
+									arguments: [relativePath, "contract"],
+								},
+								relativePath,
+								undefined,
+								element.system
+							)
+						);
+					}
+				}
+
+				return contractItems;
+			} catch (error) {
+				console.error("Error reading contracts folder:", error);
+				return [];
+			}
+		}
+
+		// Handle extension folder - show contained .md files and nested subfolders recursively
+		if (element.contextValue === "extension-folder") {
+			return this.getExtensionFolderChildren(element);
+		}
+
+		if (element.contextValue === "change") {
+			const basePath = `openspec/changes/${element.specName}`;
+			return [
+				new SpecItem(
+					"Proposal",
+					TreeItemCollapsibleState.None,
+					"spec-document",
+					this.context,
+					element.specName,
+					"proposal",
+					{
+						command: SpecExplorerProvider.openSpecCommandId,
+						title: "Open Proposal",
+						arguments: [`${basePath}/proposal.md`, "proposal"],
+					},
+					`${basePath}/proposal.md`
+				),
+				new SpecItem(
+					"Tasks",
+					TreeItemCollapsibleState.None,
+					"spec-document",
+					this.context,
+					element.specName,
+					"tasks",
+					{
+						command: SpecExplorerProvider.openSpecCommandId,
+						title: "Open Tasks",
+						arguments: [`${basePath}/tasks.md`, "tasks"],
+					},
+					`${basePath}/tasks.md`
+				),
+				new SpecItem(
+					"Design",
+					TreeItemCollapsibleState.None,
+					"spec-document",
+					this.context,
+					element.specName,
+					"design",
+					{
+						command: SpecExplorerProvider.openSpecCommandId,
+						title: "Open Design",
+						arguments: [`${basePath}/design.md`, "design"],
+					},
+					`${basePath}/design.md`
+				),
+				new SpecItem(
+					"Specs",
+					TreeItemCollapsibleState.Collapsed,
+					"change-specs-group",
+					this.context,
+					element.specName
+				),
+			];
+		}
+
+		if (element.contextValue === "change-specs-group") {
+			const specs = await this.specManager.getChangeSpecs(element.specName!);
+			return specs.map(
+				(name) =>
+					new SpecItem(
+						name,
+						TreeItemCollapsibleState.Collapsed,
+						"change-spec",
+						this.context,
+						name,
+						undefined,
+						undefined,
+						undefined,
+						element.specName
+					)
+			);
+		}
+
+		if (element.contextValue === "change-spec") {
+			const changeName = element.parentName!;
+			const specName = element.specName!;
+			const specPath = `openspec/changes/${changeName}/specs/${specName}/spec.md`;
+
+			return [
+				new SpecItem(
+					"Spec",
+					TreeItemCollapsibleState.None,
+					"spec-document",
+					this.context,
+					specName,
+					"spec",
+					{
+						command: SpecExplorerProvider.openSpecCommandId,
+						title: "Open Spec",
+						arguments: [specPath, "spec"],
+					},
+					specPath
+				),
+			];
+		}
+
+		return [];
+	}
+
+	/**
+	 * Returns children of an extension-folder node by reading the directory recursively.
+	 */
+	private async getExtensionFolderChildren(
+		element: SpecItem
+	): Promise<SpecItem[]> {
+		const folderPath = element.filePath;
+		if (!folderPath) {
+			return [];
+		}
+
+		const workspaceRoot = workspace.workspaceFolders?.[0].uri.fsPath;
+		if (!workspaceRoot) {
+			return [];
+		}
+
+		const absolutePath = join(workspaceRoot, folderPath);
+
+		try {
+			const { readdirSync, statSync } = await import("node:fs");
+			const entries = readdirSync(absolutePath);
+			const items: SpecItem[] = [];
+
+			for (const entry of entries) {
+				const entryPath = join(absolutePath, entry);
+				const entryStat = statSync(entryPath);
+
+				if (entryStat.isFile() && entry.endsWith(".md")) {
+					const relativePath = workspace.asRelativePath(entryPath);
+					const displayName = entry.replace(MARKDOWN_EXTENSION_PATTERN, "");
+					const formattedName =
+						displayName.charAt(0).toUpperCase() +
+						displayName.slice(1).replace(/-/g, " ");
+
+					items.push(
+						new SpecItem(
+							formattedName,
+							TreeItemCollapsibleState.None,
+							"extension-document",
+							this.context,
+							element.specName,
+							"extension-document",
+							{
+								command: SpecExplorerProvider.openSpecCommandId,
+								title: `Open ${formattedName}`,
+								arguments: [relativePath, "extension-document"],
+							},
+							relativePath,
+							undefined,
+							element.system
+						)
+					);
+				} else if (entryStat.isDirectory()) {
+					const relativePath = workspace.asRelativePath(entryPath);
+					const formattedName =
+						entry.charAt(0).toUpperCase() + entry.slice(1).replace(/-/g, " ");
+
+					items.push(
+						new SpecItem(
+							formattedName,
+							TreeItemCollapsibleState.Collapsed,
+							"extension-folder",
+							this.context,
+							element.specName,
+							"extension-folder",
+							undefined,
+							relativePath,
+							undefined,
+							element.system
+						)
+					);
+				}
+			}
+
+			return items;
+		} catch (error) {
+			console.error("Error reading extension folder:", error);
+			return [];
+		}
+	}
+}
+
+class SpecItem extends TreeItem {
+	readonly label: string;
+	readonly collapsibleState: TreeItemCollapsibleState;
+	readonly contextValue: string;
+	private readonly context: ExtensionContext;
+	readonly specName?: string;
+	readonly documentType?: string;
+	readonly command?: Command;
+	readonly filePath?: string;
+	readonly parentName?: string;
+	readonly system?: SpecSystemMode;
+	readonly task?: ParsedTask;
+	readonly groupStatus?: TaskStatus;
+	changeRequest?: import("../features/spec/review-flow/types").ChangeRequest;
+	specTitle?: string;
+
+	// biome-ignore lint/nursery/useMaxParams: ignore
+	constructor(
+		label: string,
+		collapsibleState: TreeItemCollapsibleState,
+		contextValue: string,
+		context: ExtensionContext,
+		specName?: string,
+		documentType?: string,
+		command?: Command,
+		filePath?: string,
+		parentName?: string,
+		system?: SpecSystemMode,
+		task?: ParsedTask,
+		groupStatus?: TaskStatus
+	) {
+		super(label, collapsibleState);
+		this.label = label;
+		this.collapsibleState = collapsibleState;
+		this.contextValue = contextValue;
+		this.context = context;
+		this.specName = specName;
+		this.documentType = documentType;
+		this.command = command;
+		this.filePath = filePath;
+		this.parentName = parentName;
+		this.system = system;
+		this.task = task;
+		this.groupStatus = groupStatus;
+
+		this.updateIconAndTooltip();
+	}
+
+	private updateIconAndTooltip() {
+		const handler = this.getContextHandler();
+		if (handler) {
+			handler();
+			return;
+		}
+
+		if (
+			this.contextValue.startsWith("group-") ||
+			this.contextValue === "change-specs-group"
+		) {
+			this.iconPath = new ThemeIcon("folder");
+		}
+	}
+
+	private getContextHandler(): (() => void) | undefined {
+		const handlers: Record<string, () => void> = {
+			spec: () => this.handleSpecIcon(),
+			"spec-current": () => this.handleSpecIcon(),
+			"spec-review": () => this.handleSpecIcon(),
+			"spec-archived": () => this.handleSpecIcon(),
+			change: () => this.handleSpecIcon(),
+			"change-spec": () => this.handleSpecIcon(),
+			"spec-document": () => this.updateDocumentIcon(),
+			"tasks-folder": () => this.handleTasksFolderIcon(),
+			"task-group": () => this.handleTaskGroupIcon(),
+			"task-item": () => this.handleTaskItemIcon(),
+			"checklists-folder": () => this.handleChecklistsFolderIcon(),
+			"checklist-item": () => this.handleChecklistItemIcon(),
+			"contracts-folder": () => this.handleContractsFolderIcon(),
+			"contract-item": () => this.handleContractItemIcon(),
+			"change-request": () => this.handleChangeRequestIcon(),
+			"extension-document": () => this.handleExtensionDocumentIcon(),
+			"extension-folder": () => this.handleExtensionFolderIcon(),
+		};
+
+		return handlers[this.contextValue];
+	}
+
+	private handleSpecIcon(): void {
+		this.iconPath = new ThemeIcon("package");
+		const systemLabel = this.system ? ` (${this.system})` : "";
+		this.tooltip = `${this.contextValue}${systemLabel}: ${this.label}`;
+	}
+
+	private handleTasksFolderIcon(): void {
+		const status = this.groupStatus ?? "not-started";
+		const statusIcon = getGroupStatusIcon(status);
+		const statusColor = this.getTaskStatusColor(status);
+		this.iconPath = new ThemeIcon(statusIcon, statusColor);
+		this.tooltip = "Tasks - Click to expand";
+	}
+
+	private handleTaskGroupIcon(): void {
+		const status = this.groupStatus ?? "not-started";
+		const statusIcon = getGroupStatusIcon(status);
+		const statusColor = this.getTaskStatusColor(status);
+		this.iconPath = new ThemeIcon(statusIcon, statusColor);
+		this.tooltip = `${this.label} - Click to expand or run /speckit.implement`;
+	}
+
+	private handleTaskItemIcon(): void {
+		if (!this.task) {
+			return;
+		}
+		const statusIcon = getTaskStatusIcon(this.task.status);
+		const statusColor = this.getTaskStatusColor(this.task.status);
+		this.iconPath = new ThemeIcon(statusIcon, statusColor);
+
+		const statusText = getTaskStatusTooltip(this.task.status);
+		const priorityText = this.task.priority
+			? ` | Priority: ${this.task.priority}`
+			: "";
+		const complexityText = this.task.complexity
+			? ` | Complexity: ${this.task.complexity}`
+			: "";
+		this.tooltip = `${statusText}${priorityText}${complexityText}\n\nClick to open at line ${this.task.line}`;
+		this.description = statusText;
+	}
+
+	private handleChecklistsFolderIcon(): void {
+		const status = this.groupStatus ?? "not-started";
+		const statusIcon = getGroupStatusIcon(status);
+		const statusColor = this.getTaskStatusColor(status);
+		this.iconPath = new ThemeIcon(statusIcon, statusColor);
+		const statusText = getTaskStatusTooltip(status);
+		this.tooltip = `Checklists - ${statusText}`;
+	}
+
+	private handleChecklistItemIcon(): void {
+		const status = this.groupStatus ?? "not-started";
+		const statusIcon = getGroupStatusIcon(status);
+		const statusColor = this.getTaskStatusColor(status);
+		this.iconPath = new ThemeIcon(statusIcon, statusColor);
+
+		const statusText = getTaskStatusTooltip(status);
+		this.tooltip = `Checklist: ${this.label} - ${statusText}`;
+		this.description = statusText;
+	}
+
+	private handleContractsFolderIcon(): void {
+		this.iconPath = new ThemeIcon("law");
+		this.tooltip = "Contracts - Click to expand";
+	}
+
+	private handleContractItemIcon(): void {
+		this.iconPath = new ThemeIcon("file-code");
+		this.tooltip = `Contract: ${this.label}`;
+	}
+
+	private handleExtensionDocumentIcon(): void {
+		this.iconPath = new ThemeIcon("extensions");
+		this.tooltip = `Extension document: ${this.label}`;
+	}
+
+	private handleExtensionFolderIcon(): void {
+		this.iconPath = new ThemeIcon("folder-library");
+		this.tooltip = `Extension folder: ${this.label}`;
+	}
+
+	private handleChangeRequestIcon(): void {
+		if (!this.changeRequest) {
+			return;
+		}
+
+		// Icon based on severity
+		const severityIcons = {
+			critical: "error",
+			high: "warning",
+			medium: "info",
+			low: "circle-outline",
+		};
+		const icon = severityIcons[this.changeRequest.severity];
+
+		// Color based on severity
+		const severityColors = {
+			critical: new ThemeColor("errorForeground"),
+			high: new ThemeColor("editorWarning.foreground"),
+			medium: new ThemeColor("editorInfo.foreground"),
+			low: new ThemeColor("descriptionForeground"),
+		};
+		const color = severityColors[this.changeRequest.severity];
+
+		this.iconPath = new ThemeIcon(icon, color);
+
+		// Build tooltip with details
+		const statusEmoji: Record<ChangeRequestStatus, string> = {
+			open: "🔴",
+			blocked: "🚫",
+			inProgress: "🟡",
+			addressed: "✅",
+		};
+		const emoji = statusEmoji[this.changeRequest.status];
+
+		const blockerText = this.changeRequest.archivalBlocker
+			? " [BLOCKS ARCHIVAL]"
+			: "";
+
+		this.tooltip = `${emoji} ${this.changeRequest.title}\n\nSpec: ${this.specTitle}\nSeverity: ${this.changeRequest.severity}\nStatus: ${this.changeRequest.status}${blockerText}\nSubmitted: ${this.changeRequest.createdAt.toLocaleString()}\nSubmitter: ${this.changeRequest.submitter}`;
+
+		// Set description to show spec name and severity
+		this.description = `${this.specTitle} | ${this.changeRequest.severity}`;
+	}
+
+	private getTaskStatusColor(status?: TaskStatus): ThemeColor | undefined {
+		switch (status) {
+			case "completed":
+				return new ThemeColor("terminal.ansiGreen");
+			case "in-progress":
+				return new ThemeColor("terminal.ansiYellow");
+			case "not-started":
+				return new ThemeColor("descriptionForeground");
+			default:
+				return;
+		}
+	}
+
+	private updateDocumentIcon() {
+		// Different icons for different document types
+		if (this.documentType === "requirements" || this.documentType === "spec") {
+			this.iconPath = new ThemeIcon("chip");
+		} else if (this.documentType === "design") {
+			this.iconPath = new ThemeIcon("layers");
+		} else if (this.documentType === "tasks") {
+			this.iconPath = new ThemeIcon("tasklist");
+		} else if (this.documentType === "proposal") {
+			this.iconPath = new ThemeIcon("lightbulb");
+		} else if (this.documentType === "plan") {
+			this.iconPath = new ThemeIcon("calendar");
+		} else if (this.documentType === "research") {
+			this.iconPath = new ThemeIcon("search");
+		} else if (this.documentType === "data-model") {
+			this.iconPath = new ThemeIcon("database");
+		} else if (this.documentType === "quickstart") {
+			this.iconPath = new ThemeIcon("rocket");
+		} else {
+			this.iconPath = new ThemeIcon("file");
+		}
+
+		this.tooltip = `${this.documentType}: ${this.label}`;
+
+		// Set description to file path
+		if (this.filePath) {
+			this.description = this.filePath;
+		}
+	}
+}
