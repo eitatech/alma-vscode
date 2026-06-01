@@ -1,0 +1,15 @@
+{
+  "workflow": "speckit",
+  "specName": "001-devin-integration",
+  "branch": "001-devin-integration",
+  "selectedAt": "2026-06-01T18:04:42.127Z",
+  "currentStep": "specify",
+  "status": "draft",
+  "stepHistory": {
+    "specify": {
+      "startedAt": "2026-06-01T18:04:44.529Z",
+      "completedAt": null
+    }
+  },
+  "transitions": []
+}

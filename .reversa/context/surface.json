@@ -1,0 +1,209 @@
+{
+  "generated_at": "2026-05-28T18:46:56Z",
+  "project_root": "/Users/t798157/Projects/lab/gatomia-vscode",
+  "project_name": "gatomia",
+  "project_version": "0.37.0",
+  "languages": [
+    {
+      "name": "TypeScript",
+      "extensions": [".ts", ".tsx"],
+      "file_count": 624
+    },
+    {
+      "name": "CSS",
+      "extensions": [".css"],
+      "file_count": 12
+    },
+    {
+      "name": "Markdown",
+      "extensions": [".md"],
+      "file_count": 7
+    },
+    {
+      "name": "JSON",
+      "extensions": [".json"],
+      "file_count": 4
+    },
+    {
+      "name": "JavaScript",
+      "extensions": [".js"],
+      "file_count": 2
+    },
+    {
+      "name": "HTML",
+      "extensions": [".html"],
+      "file_count": 1
+    }
+  ],
+  "primary_language": "TypeScript",
+  "frameworks": [
+    {
+      "name": "VS Code Extension API",
+      "version": "^1.90.0 (engines), @types/vscode ^1.84.0",
+      "source": "package.json"
+    },
+    {
+      "name": "React",
+      "version": "^18.3.1",
+      "source": "package.json / ui/package.json"
+    },
+    {
+      "name": "Vite",
+      "version": "^7.3.0",
+      "source": "ui/package.json"
+    },
+    {
+      "name": "esbuild",
+      "version": "^0.27.2",
+      "source": "package.json"
+    },
+    {
+      "name": "React Flow (@xyflow/react)",
+      "version": "^12.10.2",
+      "source": "ui/package.json"
+    },
+    {
+      "name": "Zustand",
+      "version": "^5.0.2",
+      "source": "ui/package.json"
+    },
+    {
+      "name": "Tailwind CSS",
+      "version": "^4.1.13",
+      "source": "ui/package.json"
+    },
+    {
+      "name": "Agent Client Protocol SDK (@agentclientprotocol/sdk)",
+      "version": "^0.14.1",
+      "source": "package.json"
+    },
+    {
+      "name": "Vitest",
+      "version": "^4.0.18",
+      "source": "package.json"
+    },
+    {
+      "name": "mermaid",
+      "version": "^10.9.5",
+      "source": "package.json / ui/package.json"
+    },
+    {
+      "name": "markdown-it",
+      "version": "^14.1.1",
+      "source": "package.json / ui/package.json"
+    },
+    {
+      "name": "handlebars",
+      "version": "^4.7.9",
+      "source": "package.json"
+    },
+    {
+      "name": "gray-matter",
+      "version": "^4.0.3",
+      "source": "package.json"
+    },
+    {
+      "name": "ultracite (Biome wrapper)",
+      "version": "^6.3.4 (Biome ^2.3.6)",
+      "source": "package.json"
+    }
+  ],
+  "package_manager": "npm",
+  "secondary_package_artifacts": [
+    "package-lock.json",
+    "ui (separate npm workspace)",
+    "bun.lock (present)",
+    "mise.toml (toolchain)"
+  ],
+  "entry_points": [
+    {
+      "path": "src/extension.ts",
+      "type": "extension_entry"
+    },
+    {
+      "path": "src/constants.ts",
+      "type": "extension_constants"
+    },
+    {
+      "path": "ui/src/index.tsx",
+      "type": "webview_entry"
+    },
+    {
+      "path": "ui/index.html",
+      "type": "webview_html_host"
+    }
+  ],
+  "config_files": [
+    "package.json",
+    "tsconfig.json",
+    "tsconfig.test.json",
+    "vitest.config.ts",
+    "vitest.setup.ts",
+    "biome.json",
+    "mise.toml",
+    "ralph.yml",
+    "skills-lock.json",
+    "ui/package.json",
+    "ui/vite.config.ts",
+    "ui/tsconfig.json"
+  ],
+  "ci_cd": [
+    ".github/workflows/ci.yaml",
+    ".github/workflows/cd.yaml",
+    ".github/workflows/release.yaml",
+    ".github/workflows/tag-trigger-release.yaml",
+    ".github/workflows/version-bump.yaml"
+  ],
+  "test_framework": "Vitest",
+  "test_file_count": 247,
+  "test_file_breakdown": {
+    "*.test.ts(x)": 232,
+    "*.spec.ts(x)": 15
+  },
+  "modules": [
+    "agent-chat",
+    "agents",
+    "cloud-agents",
+    "devin",
+    "hooks",
+    "orchestration",
+    "spec",
+    "steering",
+    "tasks",
+    "providers",
+    "services",
+    "panels",
+    "commands",
+    "utils",
+    "prompts",
+    "webview-agent-chat",
+    "webview-spec-explorer",
+    "webview-hooks-view",
+    "webview-orchestration",
+    "webview-preview",
+    "webview-welcome",
+    "webview-shared"
+  ],
+  "total_files": 650,
+  "git_tracked_files": 2103,
+  "database_present": false,
+  "docker_present": false,
+  "organization_suggestion": {
+    "granularity": "module",
+    "rationale": "Top-level domain folders under src/features/ (agent-chat, agents, cloud-agents, devin, hooks, orchestration, spec, steering, tasks) are the dominant organizing signal, mirrored by ui/src/features/ on the webview side.",
+    "signals": [
+      {
+        "type": "top_level_domain_folders",
+        "evidence": [
+          "src/features/agent-chat/",
+          "src/features/cloud-agents/",
+          "src/features/hooks/",
+          "src/features/spec/",
+          "src/features/orchestration/",
+          "ui/src/features/"
+        ]
+      }
+    ],
+    "features": []
+  }
+}

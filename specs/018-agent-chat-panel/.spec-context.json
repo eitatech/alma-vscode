@@ -1,0 +1,15 @@
+{
+  "workflow": "speckit",
+  "specName": "018-agent-chat-panel",
+  "branch": "018-agent-chat-panel",
+  "selectedAt": "2026-06-01T18:05:08.003Z",
+  "currentStep": "specify",
+  "status": "draft",
+  "stepHistory": {
+    "specify": {
+      "startedAt": "2026-06-01T18:05:08.104Z",
+      "completedAt": null
+    }
+  },
+  "transitions": []
+}
