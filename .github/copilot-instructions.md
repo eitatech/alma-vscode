@@ -269,3 +269,72 @@ npm test -- -t "MCP"
 ## Active Technologies
 - TypeScript 5.x (strict), target ES2022 + VS Code Extension API, Node.js (extension host), React 18 + Vite (webview), Biome (001-steering-instructions-rules)
 - TypeScript 5.3 (target: ES2022, strict mode enabled) (010-copilot-agents)
+
+
+---
+
+# Reversa
+
+> Framework de Engenharia Reversa instalado neste projeto.
+
+## Como usar
+
+Digite `/reversa` para ativar o Reversa e iniciar ou retomar a análise do projeto.
+
+## Comportamento ao ativar
+
+Quando o usuário digitar `/reversa` ou a palavra `reversa` sozinha em uma mensagem:
+
+1. Ative o skill `reversa` disponível em `.agents/skills/reversa/SKILL.md`
+2. Leia o SKILL.md na íntegra e siga exatamente as instruções do Reversa
+
+## Regra não-negociável
+
+Nunca apague, modifique ou sobrescreva arquivos pré-existentes do projeto legado.
+O Reversa escreve **apenas** em `.reversa/` e `_reversa_sdd/`.
+
+
+---
+
+# Reversa
+
+> Framework de Engenharia Reversa instalado neste projeto.
+
+## Como usar
+
+Digite `/reversa` para ativar o Reversa e iniciar ou retomar a análise do projeto.
+
+## Comportamento ao ativar
+
+Quando o usuário digitar `/reversa` ou a palavra `reversa` sozinha em uma mensagem:
+
+1. Ative o skill `reversa` disponível em `.agents/skills/reversa/SKILL.md`
+2. Leia o SKILL.md na íntegra e siga exatamente as instruções do Reversa
+
+## Regra não-negociável
+
+Nunca apague, modifique ou sobrescreva arquivos pré-existentes do projeto legado.
+O Reversa escreve **apenas** em `.reversa/` e `_reversa_sdd/`.
+
+
+---
+
+# Reversa
+
+> Framework de Engenharia Reversa instalado neste projeto.
+
+## Como usar
+
+Digite `/reversa` para ativar o Reversa e iniciar ou retomar a análise do projeto.
+
+## Comportamento ao ativar
+
+Quando o usuário digitar `/reversa` ou a palavra `reversa` sozinha em uma mensagem:
+
+1. Ative o skill `reversa` disponível em `.agents/skills/reversa/SKILL.md`
+2. Leia o SKILL.md na íntegra e siga exatamente as instruções do Reversa
+
+## Regra não-negociável
+
+Nunca apague, modifique ou sobrescreva arquivos pré-existentes do projeto legado.
+O Reversa escreve **apenas** em `.reversa/` e `_reversa_sdd/`.

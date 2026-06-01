@@ -44,7 +44,18 @@
       "!.qoder/**/*",
       "!.sonarlint/**/*",
       "!.opencode/**/*",
-      "!.half/**/*"
+      "!.half/**/*",
+      "!_reversa_sdd/**/*",
+      "!.reversa/**/*",
+      "!.agents/**/*",
+      "!.amazonq/**/*",
+      "!.codeium/**/*",
+      "!.copilot/**/*",
+      "!.cursor/**/*",
+      "!.junie/**/*",
+      "!autorun/**/*",
+      "!.cursorrules",
+      "!.windsurfrules"
     ],
     "ignoreUnknown": false
   },
