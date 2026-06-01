@@ -1,0 +1,256 @@
+{
+  "info": {
+    "id": "ses_18c79b524ffeuGyuDOIPc0C3du",
+    "slug": "kind-sailor",
+    "projectID": "f0674c533f437dbaadbddd0add83a5279a33d491",
+    "directory": "/Users/t798157/Projects/lab/gatomia-vscode",
+    "path": "",
+    "title": "Mensagem de teste",
+    "agent": "build",
+    "model": {
+      "id": "gemini-3.5-flash",
+      "providerID": "github-copilot",
+      "variant": "default"
+    },
+    "version": "1.15.12",
+    "summary": {
+      "additions": 0,
+      "deletions": 0,
+      "files": 0
+    },
+    "cost": 0,
+    "tokens": {
+      "input": 91623,
+      "output": 41,
+      "reasoning": 0,
+      "cache": {
+        "read": 0,
+        "write": 0
+      }
+    },
+    "time": {
+      "created": 1780054641371,
+      "updated": 1780054730153
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1780054697060
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "github-copilot",
+          "modelID": "gemini-3.5-flash"
+        },
+        "summary": {
+          "diffs": []
+        },
+        "id": "msg_e73872464001imGrDrUyQ9pyqN",
+        "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "teste",
+          "id": "prt_e7387246f001Qk6M5sJj2Qhdsu",
+          "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du",
+          "messageID": "msg_e73872464001imGrDrUyQ9pyqN"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_e73872464001imGrDrUyQ9pyqN",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/t798157/Projects/lab/gatomia-vscode",
+          "root": "/Users/t798157/Projects/lab/gatomia-vscode"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 45813,
+          "input": 45805,
+          "output": 8,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "gemini-3.5-flash",
+        "providerID": "github-copilot",
+        "time": {
+          "created": 1780054698579,
+          "completed": 1780054706148
+        },
+        "finish": "stop",
+        "id": "msg_e73872a53001cvAC3Bny5B5hUD",
+        "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du"
+      },
+      "parts": [
+        {
+          "snapshot": "f86d2070e0423832127da4f2be892a73bc24af4a",
+          "type": "step-start",
+          "id": "prt_e738745c7001dD3qQ9E7gtNi9f",
+          "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du",
+          "messageID": "msg_e73872a53001cvAC3Bny5B5hUD"
+        },
+        {
+          "type": "reasoning",
+          "text": "**Testing System Responsiveness**\n\nI'm processing your \"teste\" input. It appears you're checking if I'm operational, and I can confirm I am. I'll continue to provide concise, relevant responses as per our established protocol.\n\n",
+          "time": {
+            "start": 1780054705612,
+            "end": 1780054705616
+          },
+          "id": "prt_e738745cc001yw710leJ8PfwQR",
+          "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du",
+          "messageID": "msg_e73872a53001cvAC3Bny5B5hUD"
+        },
+        {
+          "type": "text",
+          "text": "Olá! Como posso ajudar você hoje?",
+          "time": {
+            "start": 1780054705617,
+            "end": 1780054705619
+          },
+          "id": "prt_e738745d1002XGs0NfNNFxZRIo",
+          "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du",
+          "messageID": "msg_e73872a53001cvAC3Bny5B5hUD"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "f86d2070e0423832127da4f2be892a73bc24af4a",
+          "type": "step-finish",
+          "tokens": {
+            "total": 45813,
+            "input": 45805,
+            "output": 8,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0,
+          "id": "prt_e738746c2001QWD9wV0UzyR7k5",
+          "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du",
+          "messageID": "msg_e73872a53001cvAC3Bny5B5hUD"
+        }
+      ]
+    },
+    {
+      "info": {
+        "role": "user",
+        "time": {
+          "created": 1780054722585
+        },
+        "agent": "build",
+        "model": {
+          "providerID": "github-copilot",
+          "modelID": "gemini-3.5-flash"
+        },
+        "summary": {
+          "diffs": []
+        },
+        "id": "msg_e73878819001evC9E8LBLmTz8Q",
+        "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du"
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "qual modelo você é?",
+          "id": "prt_e73878819002T9g8IV9njhcP4h",
+          "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du",
+          "messageID": "msg_e73878819001evC9E8LBLmTz8Q"
+        }
+      ]
+    },
+    {
+      "info": {
+        "parentID": "msg_e73878819001evC9E8LBLmTz8Q",
+        "role": "assistant",
+        "mode": "build",
+        "agent": "build",
+        "path": {
+          "cwd": "/Users/t798157/Projects/lab/gatomia-vscode",
+          "root": "/Users/t798157/Projects/lab/gatomia-vscode"
+        },
+        "cost": 0,
+        "tokens": {
+          "total": 45851,
+          "input": 45818,
+          "output": 33,
+          "reasoning": 0,
+          "cache": {
+            "write": 0,
+            "read": 0
+          }
+        },
+        "modelID": "gemini-3.5-flash",
+        "providerID": "github-copilot",
+        "time": {
+          "created": 1780054723904,
+          "completed": 1780054728073
+        },
+        "finish": "stop",
+        "id": "msg_e73878d40001fbgh8EOSvQXz9E",
+        "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du"
+      },
+      "parts": [
+        {
+          "snapshot": "f86d2070e0423832127da4f2be892a73bc24af4a",
+          "type": "step-start",
+          "id": "prt_e73879baf001b1Dq8PylFHwg6y",
+          "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du",
+          "messageID": "msg_e73878d40001fbgh8EOSvQXz9E"
+        },
+        {
+          "type": "reasoning",
+          "text": "**Identifying My Model**\n\nI'm a large language model, trained by Google.\n\n",
+          "time": {
+            "start": 1780054727601,
+            "end": 1780054727602
+          },
+          "id": "prt_e73879bb1001G0HXWALCgmzFkX",
+          "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du",
+          "messageID": "msg_e73878d40001fbgh8EOSvQXz9E"
+        },
+        {
+          "type": "text",
+          "text": "Eu sou o Gemini 3.5 Flash (`github-copilot/gemini-3.5-flash`), um grande modelo de linguagem desenvolvido pelo Google.",
+          "time": {
+            "start": 1780054727603,
+            "end": 1780054727604
+          },
+          "id": "prt_e73879bb3002z9P2z75uZsJpys",
+          "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du",
+          "messageID": "msg_e73878d40001fbgh8EOSvQXz9E"
+        },
+        {
+          "reason": "stop",
+          "snapshot": "f86d2070e0423832127da4f2be892a73bc24af4a",
+          "type": "step-finish",
+          "tokens": {
+            "total": 45851,
+            "input": 45818,
+            "output": 33,
+            "reasoning": 0,
+            "cache": {
+              "write": 0,
+              "read": 0
+            }
+          },
+          "cost": 0,
+          "id": "prt_e73879ca6001mngFLPji4yJeTe",
+          "sessionID": "ses_18c79b524ffeuGyuDOIPc0C3du",
+          "messageID": "msg_e73878d40001fbgh8EOSvQXz9E"
+        }
+      ]
+    }
+  ]
+}
