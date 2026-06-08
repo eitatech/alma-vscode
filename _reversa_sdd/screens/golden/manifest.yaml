@@ -1,0 +1,45 @@
+# golden/manifest.yaml
+#
+# Golden-file manifest emitted by the Screen Translator.
+# Mode = modernized: parity is BEHAVIORAL (events/transitions/content/states), not byte/pixel.
+# Therefore no byte/pixel golden files are emitted. The 23 source screenshots referenced in
+# _reversa_sdd/ui/inventory.md are VISUAL REFERENCE only, not golden oracles.
+# Automated capture via a running oracle is OQ-02 (not implemented in v1).
+
+schemaVersion: 1
+generatedAt: 2026-06-07T20:38:00Z
+reversa:
+  version: "1.2.34"
+producedBy: screen-translator
+sourcePlatform: vscode-extension-ui
+targetPlatform: compose
+oracleAvailable: false
+oracleHash: null
+oracleCommand: null   # the legacy VS Code extension is runnable in an Extension Dev Host, but byte/pixel golden is not the parity basis for a modernized cross-platform translation
+
+normalizationRules: []   # n/a (no byte/pixel comparison in modernized mode)
+
+# All screens listed with present:false. They are NOT byte-golden; they reference the
+# existing screenshots as visual guidance. The Inspector builds behavioral parity from
+# target_screens.md + screen_modernization_decision.md (mode: modernized), not from these.
+screens:
+  - { name: "Specs Explorer",            legacyOrigin: "src/providers/spec-explorer-provider.ts",   format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002, DEV-003], notes: "visual ref: specs-tree-detail-{1,2}.png; parity = behavioral" }
+  - { name: "Actions Explorer",          legacyOrigin: "src/providers/actions-explorer-provider.ts", format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002, DEV-003], notes: "visual ref: actions-view-expanded.png" }
+  - { name: "Steering Explorer",         legacyOrigin: "src/providers/steering-explorer-provider.ts", format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002, DEV-003], notes: "visual ref: steering-view-expanded.png" }
+  - { name: "Repo Wiki Explorer",        legacyOrigin: "src/providers/wiki-explorer-provider.ts",    format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002, DEV-003], notes: "visual ref: repo-wiki-view-expanded.png" }
+  - { name: "Running Agents",            legacyOrigin: "src/providers/running-agents-provider.ts",   format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002, DEV-003], notes: "visual ref: running-agents-view.png" }
+  - { name: "Cloud Agents",              legacyOrigin: "src/providers/cloud-agents-provider.ts",     format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002, DEV-003], notes: "visual ref: cloud-agents-view-populated.png" }
+  - { name: "Hooks Explorer",            legacyOrigin: "src/providers/hooks-explorer-provider.ts",   format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002, DEV-003], notes: "visual ref: hooks-edit-with-logs.png" }
+  - { name: "Quick Access (Overview)",   legacyOrigin: "src/providers/overview-provider.ts",         format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002, DEV-003], notes: "visual ref: welcome-setup.png" }
+  - { name: "Document Preview",          legacyOrigin: "src/panels/document-preview-panel.ts",       format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002, DEV-006], notes: "visual ref: document-preview-tasks-{1,2}.png" }
+  - { name: "Agent Chat",                legacyOrigin: "ui/src/features/agent-chat",                 format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002], notes: "visual ref: agent-chat-{new-session,active-transcript}.png" }
+  - { name: "Welcome to GatomIA",        legacyOrigin: "ui/src/features/welcome",                    format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002, DEV-005], notes: "visual ref: welcome-{setup,features,configuration,status}.png" }
+  - { name: "Hooks Form",                legacyOrigin: "ui/src/features/hooks-view",                 format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002], notes: "visual ref: hooks-create-*.png, hooks-edit-with-logs.png" }
+  - { name: "Orchestration (MAESTRO)",   legacyOrigin: "ui/src/features/orchestration",              format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002, DEV-004], notes: "visual ref: maestro-{board-lanes,board-grouped,session-detail}.png; Workflow Composer not captured" }
+  - { name: "Agent Chat (activity-bar tree)", legacyOrigin: "src/providers/agent-chat-primary-provider.ts", format: "reference-screenshot", present: false, sha256: null, deviations: [DEV-001, DEV-002, DEV-003], notes: "uncaptured in ui/inventory.md; layout 🟡 inferred" }
+
+nonDeterministic: []
+
+# Not skipped: the legacy HAS UI. Golden byte/pixel capture is simply not the parity
+# mechanism for a modernized cross-platform translation.
+skipped: null
