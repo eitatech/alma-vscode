@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-07T20:38:00Z",
+  "producedBy": "screen-translator",
+  "sourcePlatform": "vscode-extension-ui",
+  "detectionConfidence": "confirmed",
+  "screens": [
+    {
+      "id": "SCR-0001",
+      "canonicalName": "Specs Explorer",
+      "legacyOrigin": { "file": "src/providers/spec-explorer-provider.ts", "line": null, "paragraph": "gatomia.views.specExplorer" },
+      "kind": "list",
+      "isCritical": true,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md row 1",
+      "transitions": ["Document Preview", "Hooks form"]
+    },
+    {
+      "id": "SCR-0002",
+      "canonicalName": "Actions Explorer",
+      "legacyOrigin": { "file": "src/providers/actions-explorer-provider.ts", "line": null, "paragraph": "gatomia.views.actionsExplorer" },
+      "kind": "list",
+      "isCritical": false,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md row 2"
+    },
+    {
+      "id": "SCR-0003",
+      "canonicalName": "Steering Explorer",
+      "legacyOrigin": { "file": "src/providers/steering-explorer-provider.ts", "line": null, "paragraph": "gatomia.views.steeringExplorer" },
+      "kind": "list",
+      "isCritical": false,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md row 3"
+    },
+    {
+      "id": "SCR-0004",
+      "canonicalName": "Repo Wiki Explorer",
+      "legacyOrigin": { "file": "src/providers/wiki-explorer-provider.ts", "line": null, "paragraph": "gatomia.views.wikiExplorer" },
+      "kind": "list",
+      "isCritical": false,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md row 4"
+    },
+    {
+      "id": "SCR-0005",
+      "canonicalName": "Running Agents",
+      "legacyOrigin": { "file": "src/providers/running-agents-provider.ts", "line": null, "paragraph": "gatomia.views.runningAgents" },
+      "kind": "list",
+      "isCritical": true,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md row 5",
+      "transitions": ["Agent Chat"]
+    },
+    {
+      "id": "SCR-0006",
+      "canonicalName": "Cloud Agents",
+      "legacyOrigin": { "file": "src/providers/cloud-agents-provider.ts", "line": null, "paragraph": "gatomia.views.cloudAgents" },
+      "kind": "list",
+      "isCritical": true,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md row 6",
+      "interpolations": ["{{taskId}}", "{{prUrl}}"]
+    },
+    {
+      "id": "SCR-0007",
+      "canonicalName": "Hooks Explorer",
+      "legacyOrigin": { "file": "src/providers/hooks-explorer-provider.ts", "line": null, "paragraph": "gatomia.views.hooksExplorer" },
+      "kind": "list",
+      "isCritical": false,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md row 7",
+      "transitions": ["Hooks form"]
+    },
+    {
+      "id": "SCR-0008",
+      "canonicalName": "Quick Access (Overview)",
+      "legacyOrigin": { "file": "src/providers/overview-provider.ts", "line": null, "paragraph": "gatomia.views.overview" },
+      "kind": "list",
+      "isCritical": false,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md row 8",
+      "transitions": ["Welcome"]
+    },
+    {
+      "id": "SCR-0009",
+      "canonicalName": "Document Preview",
+      "legacyOrigin": { "file": "src/panels/document-preview-panel.ts", "line": null, "paragraph": "WebviewPanel document-preview" },
+      "kind": "page",
+      "isCritical": true,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md row 9",
+      "interpolations": ["{{docTitle}}", "{{mermaidSource}}"],
+      "transitions": ["refine flow"]
+    },
+    {
+      "id": "SCR-0010",
+      "canonicalName": "Agent Chat",
+      "legacyOrigin": { "file": "ui/src/features/agent-chat", "line": null, "paragraph": "gatomia.views.agentChat" },
+      "kind": "page",
+      "isCritical": true,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md row 10",
+      "interpolations": ["{{sessionId}}", "{{transcript}}", "{{pendingWrite}}"],
+      "transitions": ["pending-write Accept/Reject", "queued follow-up"]
+    },
+    {
+      "id": "SCR-0011",
+      "canonicalName": "Welcome to GatomIA",
+      "legacyOrigin": { "file": "ui/src/features/welcome", "line": null, "paragraph": "WebviewPanel welcome-screen" },
+      "kind": "wizard-step",
+      "isCritical": false,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md row 12 (tabs: Setup/Features/Configuration/Status/Learn)"
+    },
+    {
+      "id": "SCR-0012",
+      "canonicalName": "Hooks Form (create/edit)",
+      "legacyOrigin": { "file": "ui/src/features/hooks-view", "line": null, "paragraph": "WebviewPanel hooks" },
+      "kind": "form",
+      "isCritical": true,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md row 13 (4 action types + exec logs)",
+      "interpolations": ["{{hookName}}", "{{actionConfig}}", "{{executionLogs}}"]
+    },
+    {
+      "id": "SCR-0013",
+      "canonicalName": "Orchestration (MAESTRO board)",
+      "legacyOrigin": { "file": "ui/src/features/orchestration", "line": null, "paragraph": "gatomia.views.orchestration" },
+      "kind": "page",
+      "isCritical": true,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md row 14 (board lanes + grouped + session detail + Workflow Composer React Flow)",
+      "interpolations": ["{{lanes}}", "{{sessionSummary}}"],
+      "transitions": ["session detail", "Workflow Composer"]
+    },
+    {
+      "id": "SCR-0014",
+      "canonicalName": "Agent Chat (activity-bar tree)",
+      "legacyOrigin": { "file": "src/providers/agent-chat-primary-provider.ts", "line": null, "paragraph": "gatomia.views.agentChatPrimary" },
+      "kind": "list",
+      "isCritical": false,
+      "matchesUiInventory": true,
+      "uiInventoryRef": "ui/inventory.md 'Contributed views NOT yet captured' (no screenshot)"
+    }
+  ],
+  "divergenceFromUiInventory": {
+    "totalInUiInventory": 15,
+    "totalInThisInventory": 14,
+    "matched": 14,
+    "missingInUiInventory": [],
+    "extraInUiInventory": ["row 11 Cloud provider session (external Devin Cloud UI, not gatomia-owned, excluded from translation)"],
+    "divergencePercent": 6.7
+  }
+}

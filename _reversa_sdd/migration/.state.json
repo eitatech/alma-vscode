@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 2,
+  "startedAt": "2026-06-07T20:07:53Z",
+  "lastCheckpoint": "2026-06-07T20:46:00Z",
+  "completedAgents": [
+    {
+      "agent": "paradigm_advisor",
+      "status": "complete",
+      "completedAt": "2026-06-07T20:12:03Z",
+      "artifacts": ["paradigm_decision.md"]
+    },
+    {
+      "agent": "curator",
+      "status": "complete",
+      "completedAt": "2026-06-07T20:22:14Z",
+      "artifacts": ["target_business_rules.md", "discard_log.md"]
+    },
+    {
+      "agent": "strategist",
+      "status": "complete",
+      "completedAt": "2026-06-07T20:32:17Z",
+      "artifacts": ["migration_strategy.md", "risk_register.md", "cutover_plan.md"]
+    },
+    {
+      "agent": "designer",
+      "status": "complete",
+      "completedAt": "2026-06-07T20:38:00Z",
+      "phasesApproved": ["topology", "architecture"],
+      "artifacts": ["topology_decision.md", "target_architecture.md", "target_domain_model.md", "target_data_model.md", "data_migration_plan.md"]
+    },
+    {
+      "agent": "screen_translator",
+      "status": "complete",
+      "completedAt": "2026-06-07T20:42:00Z",
+      "phasesApproved": ["mode", "generation"],
+      "deviationsApproved": 6,
+      "artifacts": ["screen_modernization_decision.md", "target_screens.md", "screen_deviation_log.md", "screens/inventory.json", "screens/golden/manifest.yaml", "design-system/tokens-derived.md"]
+    },
+    {
+      "agent": "inspector",
+      "status": "complete",
+      "completedAt": "2026-06-07T20:46:00Z",
+      "artifacts": ["parity_specs.md", "parity_tests/ (8 flow + 1 screen-contract .feature)"]
+    }
+  ],
+  "pendingAgents": [],
+  "currentAgent": {
+    "agent": null,
+    "phase": null,
+    "status": "complete",
+    "topologyApproved": true,
+    "screenModeApproved": true
+  },
+  "pendingDecisions": [],
+  "resolvedDecisions": [
+    "AMB-003: constitution validator wired-but-permissive; rules to forward cycle (a)",
+    "AMB-004: embed own MCP client, owns server-of-origin metadata (b)",
+    "AMB-005: JetBrains AI Assistant as chat host (b, user override of c)",
+    "AMB-006: no VS Code config/state import in v1 (a)"
+  ],
+  "artifacts": {
+    "migration_brief.md": {
+      "hash": "sha256:443e9875db6a480a01ab0f6efcc4604ca8a6f9cc7780f0c46b4e07b3435724b5",
+      "producedBy": "orchestrator",
+      "at": "2026-06-07T20:07:53Z"
+    },
+    "paradigm_decision.md": {
+      "hash": "sha256:605de1f0731155c0d4d45e365b7efea2210b4cb4373c0b6508769e667b946234",
+      "producedBy": "paradigm_advisor",
+      "at": "2026-06-07T20:12:03Z"
+    },
+    "target_business_rules.md": {
+      "hash": "sha256:db830edaa40f84ed9c0cb59ccdb117b2f57fd356184de6729924da7e9d14164f",
+      "producedBy": "curator",
+      "at": "2026-06-07T20:26:10Z"
+    },
+    "discard_log.md": {
+      "hash": "sha256:ddc1f843ee316404c98229b18cb09c28f16eb7d2791579c0bdbb68dc0a31acd5",
+      "producedBy": "curator",
+      "at": "2026-06-07T20:22:14Z"
+    },
+    "ambiguity_log.md": {
+      "hash": "sha256:412bacdaadfb97f753325fa1efb052434b61959f18b8c687a0627e23d0876ce2",
+      "producedBy": "orchestrator",
+      "at": "2026-06-07T20:26:10Z"
+    },
+    "migration_strategy.md": {
+      "hash": "sha256:2165a950e036c781c79ca1f4efac55239ab11120bd2a7e7abc05f9b1b1a7a5ca",
+      "producedBy": "strategist",
+      "at": "2026-06-07T20:32:17Z"
+    },
+    "risk_register.md": {
+      "hash": "sha256:54a9f1e9f70417253c819721b659b18033da1db03cae9ffb724f690726fb87d9",
+      "producedBy": "strategist",
+      "at": "2026-06-07T20:32:17Z"
+    },
+    "cutover_plan.md": {
+      "hash": "sha256:29af8e338ecd1172ca36cd4b1eb597f99ca73c4f4ae8842248abcd305cc3050c",
+      "producedBy": "strategist",
+      "at": "2026-06-07T20:32:17Z"
+    },
+    "topology_decision.md": {
+      "hash": "sha256:c470b3cf619edebaac4ea4cfbfb2e71d6d008f93a996c3783a3ff4a80a0553eb",
+      "producedBy": "designer",
+      "at": "2026-06-07T20:32:17Z"
+    },
+    "target_architecture.md": {
+      "hash": "sha256:0fdfeee718c223d126138e7952b19e5aefbba27343d1cb5baaf7ac07d19e4eaf",
+      "producedBy": "designer",
+      "at": "2026-06-07T20:32:17Z"
+    },
+    "target_domain_model.md": {
+      "hash": "sha256:66677d54bcfe6862d6f86134ac02c4ec12006f1a08e4cc1dd40a3ec1ebd1b70e",
+      "producedBy": "designer",
+      "at": "2026-06-07T20:32:17Z"
+    },
+    "target_data_model.md": {
+      "hash": "sha256:dd34f1b038d8f7bd14b86c7a1a97d49fbf463a9f1772376dd150a67c42a58078",
+      "producedBy": "designer",
+      "at": "2026-06-07T20:32:17Z"
+    },
+    "data_migration_plan.md": {
+      "hash": "sha256:e1a6bdc98826b72cfecfb20ab85da901606daaa46f7acf344a3b684f0bb1154b",
+      "producedBy": "designer",
+      "at": "2026-06-07T20:32:17Z"
+    },
+    "screen_modernization_decision.md": {
+      "hash": "sha256:3f0441e16764003b5ea7fb76ff47d737b96538d99e7421ff8e3b267912fe8806",
+      "producedBy": "screen_translator",
+      "at": "2026-06-07T20:38:00Z"
+    },
+    "screens/inventory.json": {
+      "hash": "sha256:1947f8536c419baaaaca2d879fb1195f4ee106985d6636f0d928410f20c683b2",
+      "producedBy": "screen_translator",
+      "at": "2026-06-07T20:38:00Z"
+    },
+    "target_screens.md": {
+      "hash": "sha256:2f857d628a775b992b5f6dab7ec308da852ce0babf11b5064139d97a7b945e0c",
+      "producedBy": "screen_translator",
+      "at": "2026-06-07T20:38:00Z"
+    },
+    "screen_deviation_log.md": {
+      "hash": "sha256:112a16674f4c4f77a7769b7c67530d29a0294a76408a29ad665ef533cc68defc",
+      "producedBy": "screen_translator",
+      "at": "2026-06-07T20:42:00Z"
+    },
+    "design-system/tokens-derived.md": {
+      "hash": "sha256:f14a7c147efb435a819481e8fc627aedd943c57792b9d1e29780e2e414555fe5",
+      "producedBy": "screen_translator",
+      "at": "2026-06-07T20:38:00Z"
+    },
+    "screens/golden/manifest.yaml": {
+      "hash": "sha256:bdafeff86cf7e1c6930af1e1722f6c3c972105898b9681267f39f8f6e36ecfa5",
+      "producedBy": "screen_translator",
+      "at": "2026-06-07T20:38:00Z"
+    },
+    "parity_specs.md": {
+      "hash": "sha256:db16014d90580eb66f217165d5ef96782105dabef3db935593e96b344ec78bb7",
+      "producedBy": "inspector",
+      "at": "2026-06-07T20:46:00Z"
+    },
+    "handoff.md": {
+      "hash": "sha256:48dd4146bd054e3d197fe27db98aa0563d569bf266d53eaee9a575677c79a1f5",
+      "producedBy": "orchestrator",
+      "at": "2026-06-07T20:46:00Z"
+    }
+  },
+  "completedAt": "2026-06-07T20:46:00Z",
+  "auto": false,
+  "engine": "devin",
+  "reversaVersion": "1.2.34",
+  "briefPath": "_reversa_sdd/migration/migration_brief.md",
+  "expectedLegacyArtifacts": "references/expected_legacy_artifacts.yaml"
+}
