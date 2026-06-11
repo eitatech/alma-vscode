@@ -118,9 +118,31 @@ All escalated questions were answered. Two items remain **decided but not yet sp
 | 🔴 | 🟢 (decision) | spec-explorer drift | Maintainer: **migrate** to shared bridge |
 | 🟡 | 🟢 | MCP correlation target | Maintainer: **use metadata signal** (current heuristic = interim 🟡) |
 | 🟡/🔴 | 🟢 | Spec `009` skipped | Maintainer: **abandoned** |
+| 🟢 | 🟢 (corrected) | `agent-chat/start-and-run-session` R-AC-8 "executionTarget immutable after first turn" / cite `:985` | Cross-validation 2026-05-30: `:985` is `recordModeChange` (mode only); `executionTarget` has **no setter** (set at create `store:256`, copied on `retry :865`) — wording+citation corrected; no turn-boundary guard exists (behavior still correct) |
 
 ---
 
 ## Cross-Review
 
 - External engine consulted: **none.** No `codex:*` tooling was available in this session, so the optional cross-review (offered at `doc_level = completo`) was skipped per the Reviewer spec. The review was performed by a single engine (Reversa Reviewer) with direct source verification of every code-determinable claim.
+
+---
+
+## Cross-Validation Re-Review (2026-05-30) — Reconstruction Oracle
+
+> A second Reviewer pass, run **after** the JetBrains/Kotlin reconstruction. Method: treat the migration rule-set (`migration/target_business_rules.md` — `R-SP/AC/CD/HK/OR`) **and the working, parity-tested Kotlin reimplementation** as an independent oracle, then verify the reverse-eng specs' core business-rule **constants and 🟢 claims** against the actual legacy TypeScript (ground truth). Scope = the ~40 highest-risk rule claims across the 6 product contexts (not a full marker re-count). The corpus is unchanged since the first review (committed `3935e52`; only `reconstruction-plan.md` is new) and all 96 units remain structurally complete.
+
+**Result — the reverse-eng specs are independently corroborated.** Every core claim checked MATCHED the legacy code:
+
+| Context | Claims verified | Outcome |
+|---------|-----------------|---------|
+| Hooks | R-HK-1…7 | ✅ exact (`MAX_CHAIN_DEPTH=10`, `ACTION_TIMEOUT_MS=30_000`, logs 100, history 50, `MCP_DISCOVERY_CACHE_TTL=300_000`+conc 5, `DEBOUNCE_DELAY_MS=2000`; `validateVariables` stub = D-5) |
+| Agent-chat | R-AC-1/2/4/7 + pending-write + cloud read-only | ✅ exact (absorbing terminals, one queued follow-up→2nd throws, archive 10k/2MB/25%, agent caps win, cloud adapter omits `submit`/`retry`) |
+| Agent-chat | R-AC-8 | ⚠️ corrected in place (executionTarget immutable **by construction**, not by a turn guard; `:985` mis-cited) |
+| Cloud/Devin | R-CD-1/3/4/6/7/10/12 + grace | ✅ exact (prefix→version `cog_`→V3/`apk_`→V1/`apk_user_`→V1, 3-failure stop, 7-day retention, idempotent `[ ]`→`[x]`, 5min/1h vs `GRACE_CYCLES=6`) |
+| Spec/Steering | R-SP-1/2/4/5/8 + D-4 + constitution stub | ✅ exact (FSM initial = `current`, `archived`→`reopened` reversible, normalized-title dedup, `dispatchToTasksPrompt` mock, `validateConstitution` always-true) |
+| Orchestration | R-OR-1/3/4 + D-2 + D-3 | ✅ exact (bucket rank active→waiting→completed→failed, single-claim + parallelizable gate, terminal fires hook; D-2 non-canonical session + D-3 `!== "error"` invalid-state check confirmed verbatim — already 🔴 in the spec) |
+
+**Findings:** **1** precision correction (R-AC-8, in-place above) · **0** new 🔴 gaps · the previously-flagged defects (D-2/D-3/D-4 + both stubs) confirmed exactly as documented. Overall confidence reaffirmed at **≈87.8%** (the single sub-claim wording fix is immaterial to the aggregate).
+
+**Aside (out of Reviewer scope — a reconstruction follow-up, NOT a reverse-eng spec defect):** the Kotlin port's `DevinApiVersion` used placeholder token prefixes (`apk_`→v2, `dev_`→v1); the legacy truth is `cog_`→V3 / `apk_`→V1 / `apk_user_`→V1 (`devin/config.ts:40,46,52`). The port's R-CD-1 implementation should adopt the real prefixes. Logged to `gaps.md`.

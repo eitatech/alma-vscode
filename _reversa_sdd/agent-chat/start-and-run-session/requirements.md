@@ -19,7 +19,7 @@ Starting a new agent chat session, dispatching the initial prompt, streaming the
 
 - **R-AC-1** New runs always create a new session; terminal states are absorbing. 🟢 `acp-chat-runner.ts:304`
 - **R-AC-2** At most one queued follow-up while a turn is in flight; second submit throws. 🟢 `acp-chat-runner.ts:310`
-- **R-AC-8** Mode/model changes apply on the next turn, audited via system message; execution target immutable after first turn. 🟢 `acp-chat-runner.ts:985`
+- **R-AC-8** Mode/model changes apply on the next turn, audited via a system message. 🟢 `acp-chat-runner.ts:985` (`recordModeChange`). The execution target is **set once at session creation and has no mutation path** (immutable by construction — no setter; only copied onto a fresh session by `retry`). 🟢 `agent-chat-session-store.ts:256` (set on create), `acp-chat-runner.ts:865` (copied on retry). Note: there is **no explicit "after first turn" guard** — immutability is structural, not enforced by a turn-boundary check. [Reviewer cross-validation 2026-05-30 — citation `:985` covers only the mode-change record, not the target.]
 - Capacity: when ACP sessions ≥ cap, prompt the user to cancel an idle (waiting-for-input) session before starting. 🟢 `agent-chat-registry.ts:224`; `cap-warning-prompt.ts`
 
 ## Requisitos Funcionais

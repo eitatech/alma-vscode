@@ -51,6 +51,15 @@
 
 ---
 
+## Cross-validation follow-ups (2026-05-30 re-review)
+
+> From the reconstruction-oracle re-review (see `confidence-report.md § Cross-Validation Re-Review`). The ~40 core business-rule claims all matched the legacy code; these are the only two items raised, both non-blocking.
+
+- **R-AC-8 wording (reverse-eng spec, FIXED in place):** `agent-chat/start-and-run-session` claimed "executionTarget immutable after first turn" citing `acp-chat-runner.ts:985`. Reality: `:985` is `recordModeChange` (mode/model only); `executionTarget` has **no setter** — set once at `agent-chat-session-store.ts:256` and copied on `retry (:865)`, i.e. immutable **by construction**, with no turn-boundary guard. Spec corrected; behavior was already faithful.
+- **Devin token-prefix mapping (RECONSTRUCTION follow-up — NOT a reverse-eng spec gap):** the Kotlin port's `DevinApiVersion` shipped placeholder prefixes (`apk_`→v2, `dev_`→v1). The legacy truth (`devin/config.ts:40,46,52`) is `cog_`→V3, `apk_`→V1, `apk_user_`→V1. The reverse-eng specs say only "version by token prefix" (correct, no change); the **port's R-CD-1 implementation** should adopt the real prefixes. Tracked here so a forward/port cycle picks it up.
+
+---
+
 > **Bottom line:** the reverse-engineered specs are a faithful, high-confidence (≈88%) description of the
 > *current* system. Every escalated gap has a maintainer decision. The items above are the agreed
 > forward-cycle backlog, not blockers to understanding or reimplementing today's behavior.
