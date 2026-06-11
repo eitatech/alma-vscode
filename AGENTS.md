@@ -7,8 +7,23 @@ This file provides guidance to AI agents when working with code in this reposito
 - Follow Visual Studio Code Extension Guidelines provided by Microsoft present at [https://code.visualstudio.com/api/extension-guides/overview](https://code.visualstudio.com/api/extension-guides/overview)
 - Follow Visual Studio Code UX guidelines provided by Microsoft present at [https://code.visualstudio.com/api/ux-guidelines/overview](https://code.visualstudio.com/api/ux-guidelines/overview)
 - Follow GitHub Copilot SDK guidelines provided by GitHub present at [https://github.com/github/copilot-sdk](https://github.com/github/copilot-sdk)
+- For the IntelliJ plugin (`gatomia-intellij/`), follow the IntelliJ Platform SDK documentation. It is the canonical source for correct API signatures, UI/UX, and plugin development practices — consult it before using any platform/Compose/Jewel API:
+  - Start here (index): [https://plugins.jetbrains.com/docs/intellij/welcome.html](https://plugins.jetbrains.com/docs/intellij/welcome.html)
+  - UI guidelines & components (tool windows, icons, Swing/Compose-Jewel, dialogs): [https://plugins.jetbrains.com/docs/intellij/ui-overview.html](https://plugins.jetbrains.com/docs/intellij/ui-overview.html)
 - Always run `npm run check` before marking any task as complete. This ensures code quality and formatting standards are met.
+- For the IntelliJ plugin, run `./gradlew check` (from `gatomia-intellij/`) before marking a task complete; build the artifact with `./gradlew buildPlugin`.
 - Never use emoji in source code files (from global user instructions).
+
+## IntelliJ Plugin (`gatomia-intellij/`)
+
+The repository also contains a native Kotlin IntelliJ Platform plugin under `gatomia-intellij/` (Compose/Jewel UI, `PersistentStateComponent`/project files/PasswordSafe for state — no webview, no DB).
+
+- **Authoritative docs (always consult for APIs, UI, and signatures):**
+  - IntelliJ Platform SDK index: [https://plugins.jetbrains.com/docs/intellij/welcome.html](https://plugins.jetbrains.com/docs/intellij/welcome.html)
+  - UI overview & guidelines: [https://plugins.jetbrains.com/docs/intellij/ui-overview.html](https://plugins.jetbrains.com/docs/intellij/ui-overview.html)
+  - These cover tool windows, actions, icons (`AllIcons`, custom SVG + `_dark` variants, `IconLoader`), settings (`Configurable`/`PersistentStateComponent`), notifications, editor banners, and Compose/Jewel integration.
+- When unsure of an exact signature, verify against the docs first; the bundled platform/Jewel/Compose jars in the local IDE (`<IDE>/Contents/lib/*.jar`) can be inspected as a fallback (`unzip -l`, `javap`).
+- Icons: prefer `AllIcons`/Jewel `AllIconsKeys` equivalents; custom SVGs must be the simple subset the IDE's renderer (JSVG) supports — no `feColorMatrix`/`mask`/embedded-raster filters. Ship monochrome `icon.svg` + `icon_dark.svg` using palette grays (`#6C707E` light / `#CED0D6` dark).
 
 ## Project Constitution (NON-NEGOTIABLE)
 
