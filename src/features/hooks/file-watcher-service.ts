@@ -76,11 +76,6 @@ export interface IFileWatcherService {
  * - Watch for agent file creation/modification/deletion
  * - Debounce rapid changes to prevent excessive re-scanning
  * - Emit events to trigger registry refresh
- *
- * Implementation phases:
- * - Phase 2 (T008): Skeleton with stub methods ✅ CURRENT
- * - Phase 6 (T060): Implement startWatching() with VS Code FileSystemWatcher - TODO
- * - Phase 6 (T061): Implement debouncing logic (500ms) - TODO
  */
 export class FileWatcherService implements IFileWatcherService {
 	// Internal state

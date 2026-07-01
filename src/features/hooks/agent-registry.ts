@@ -212,9 +212,6 @@ export class AgentRegistry {
 	 * @returns Agent entry or undefined if not found
 	 */
 	getAgentById(agentId: string): AgentRegistryEntry | undefined {
-		// TODO: Implement in Phase 3 (T019)
-		// 1. Lookup agent in internal registry by ID
-		// 2. Return agent or undefined
 		return this.agents.get(agentId);
 	}
 
@@ -323,9 +320,6 @@ export class AgentRegistry {
 	onDidChangeRegistry(callback: (event: RegistryChangeEvent) => void): {
 		dispose: () => void;
 	} {
-		// TODO: Implement in Phase 6 (T063)
-		// 1. Add callback to internal listener list
-		// 2. Return disposable that removes callback
 		this.changeListeners.push(callback);
 
 		return {

@@ -154,12 +154,6 @@ export interface ITemplateVariableParser {
  * - Validate template syntax and variable availability
  * - Substitute variables with runtime context values
  * - Handle missing variables gracefully (replace with empty string)
- *
- * Implementation phases:
- * - Phase 2 (T007): Skeleton with stub methods ✅ CURRENT
- * - Phase 4 (T032): Implement extractVariables() - TODO
- * - Phase 4 (T033): Implement validateSyntax() - TODO
- * - Phase 4 (T034): Implement substitute() - TODO
  */
 export class TemplateVariableParser implements ITemplateVariableParser {
 	// ============================================================================
@@ -167,13 +161,7 @@ export class TemplateVariableParser implements ITemplateVariableParser {
 	// ============================================================================
 
 	/**
-	 * Parse template string to extract all variable references
-	 *
-	 * TODO: Phase 4 (T032) - Implement variable extraction
-	 * - Use TEMPLATE_VARIABLE_PATTERN regex to find all $variableName patterns
-	 * - Extract variable names from capture groups
-	 * - Remove duplicates and return unique variable names
-	 * - Handle edge cases: empty template, no variables, etc.
+	 * Parse template string to extract all unique variable references.
 	 *
 	 * @param template Template string with $variable syntax
 	 * @returns Array of extracted variable names
@@ -196,14 +184,9 @@ export class TemplateVariableParser implements ITemplateVariableParser {
 	}
 
 	/**
-	 * Substitute variables in template with values from context
-	 *
-	 * TODO: Phase 4 (T034) - Implement variable substitution
-	 * - Use TEMPLATE_VARIABLE_PATTERN regex to find all $variableName patterns
-	 * - Replace each pattern with corresponding context value
-	 * - Use empty string for missing variables (graceful degradation)
-	 * - Handle type coercion (convert numbers/booleans to strings)
-	 * - Preserve original template if no variables found
+	 * Substitute variables in template with values from context.
+	 * Missing variables degrade gracefully to an empty string, and
+	 * non-string values are coerced to strings.
 	 *
 	 * @param template Template string with $variable syntax
 	 * @param context Context object with variable values
