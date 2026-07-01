@@ -19,7 +19,7 @@ import type {
 } from "./types";
 import { workspace } from "vscode";
 import { join, dirname } from "path";
-import { mkdirSync, readFileSync, writeFileSync } from "fs";
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "fs";
 import {
 	serializeSpecification,
 	deserializeSpecification,
@@ -111,12 +111,17 @@ function persistStateCache(): void {
 	}
 
 	try {
+		// Atomic write: serialize to a temp file in the same directory and
+		// rename over the target. rename(2) is atomic on the same filesystem,
+		// so concurrent persists never observe a half-written JSON file.
 		mkdirSync(dirname(filePath), { recursive: true });
+		const tempPath = `${filePath}.${process.pid}.tmp`;
 		writeFileSync(
-			filePath,
+			tempPath,
 			JSON.stringify({ specStates: payload }, null, 2),
 			"utf8"
 		);
+		renameSync(tempPath, filePath);
 	} catch (error) {
 		console.error("[ReviewFlow State] Failed to persist state cache:", error);
 	}
@@ -499,6 +504,22 @@ export function returnSpecToReview(specId: string): Specification | null {
  */
 export function __testInitSpec(spec: Specification): void {
 	specStateCache.set(spec.id, spec);
+	// Mark the cache as initialized so subsequent mutations do not call
+	// loadStateCache() and clobber this in-memory fixture by reading a state
+	// file left behind by another test file (the vscode mock points every test
+	// at the same workspace path).
+	cacheInitialized = true;
+}
+
+/**
+ * Reset all in-memory review-flow state. Test-only helper to guarantee
+ * isolation between test cases that share this module's global cache.
+ */
+export function __testResetState(): void {
+	specStateCache.clear();
+	autoReviewRetryQueue.clear();
+	cacheInitialized = false;
+	autoReviewInitialized = false;
 }
 
 /**

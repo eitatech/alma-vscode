@@ -237,6 +237,24 @@ describe("spec-kit-utilities", () => {
 				)
 			).toBe(true);
 		});
+
+		it("should not match a sibling directory sharing the specs prefix", () => {
+			expect(
+				isInSpecKitFeatureDirectory(
+					"/workspace/specsnot-a-feature/001-feature/spec.md",
+					"/workspace/specs"
+				)
+			).toBe(false);
+		});
+
+		it("should tolerate a trailing slash on the specs path", () => {
+			expect(
+				isInSpecKitFeatureDirectory(
+					"/workspace/specs/001-feature/spec.md",
+					"/workspace/specs/"
+				)
+			).toBe(true);
+		});
 	});
 
 	describe("detectAvailableSpecSystems", () => {

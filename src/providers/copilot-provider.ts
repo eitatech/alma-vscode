@@ -264,8 +264,4 @@ export class CopilotProvider {
 			}, 100);
 		});
 	}
-
-	async executePlan(prompt: string): Promise<void> {
-		// TODO: Implement plan execution logic
-	}
 }

@@ -8,7 +8,7 @@
  */
 
 import type { DevinSessionStorage } from "./devin-session-storage";
-import { logInfo } from "./logging";
+import { logError, logInfo } from "./logging";
 
 /**
  * Cleanup interval: run every 6 hours (in ms).
@@ -32,8 +32,8 @@ export class SessionCleanupService {
 	async start(): Promise<void> {
 		await this.runCleanup();
 		this.timerId = setInterval(() => {
-			this.runCleanup().catch(() => {
-				// Swallow cleanup errors
+			this.runCleanup().catch((error: unknown) => {
+				logError("Periodic session cleanup failed", error);
 			});
 		}, CLEANUP_INTERVAL_MS);
 	}

@@ -11,7 +11,7 @@
 import { window } from "vscode";
 import type * as vscode from "vscode";
 import type { CloudAgentProvider } from "../cloud-agent-provider";
-import { logInfo, logError } from "../logging";
+import { logInfo, logWarn, logError } from "../logging";
 import {
 	SessionStatus,
 	TaskStatus,
@@ -170,7 +170,11 @@ function mapDevinToCloudStatus(devinStatus: string): SessionStatus {
 		case "cancelled":
 			return SessionStatus.CANCELLED;
 		default:
-			return SessionStatus.RUNNING;
+			// Unknown statuses must not be reported as RUNNING: a failed or
+			// stalled session would then appear active forever. Treat them as
+			// PENDING so polling continues, and surface the unexpected value.
+			logWarn(`Unknown Devin status "${devinStatus}"; mapping to PENDING`);
+			return SessionStatus.PENDING;
 	}
 }
 

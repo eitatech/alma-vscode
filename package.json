@@ -824,12 +824,6 @@
         "icon": "$(key)"
       },
       {
-        "command": "gatomia.devin.runWithDevin",
-        "title": "Run with Devin",
-        "category": "GatomIA",
-        "icon": "$(rocket)"
-      },
-      {
         "command": "gatomia.selectProvider",
         "title": "Select Cloud Agent Provider",
         "category": "GatomIA",

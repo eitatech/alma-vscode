@@ -12,7 +12,7 @@ const SLUG_INVALID_CHARS_REGEX = /[^\w-]/g;
 const SPEC_KIT_FEATURE_DIR_VALIDATION_REGEX = /^\d{3,}-[a-z0-9][-a-z0-9]*$/i;
 const PATH_SEPARATOR_REGEX = /[\\/]/;
 const BACKSLASH_REGEX = /\\/g;
-const LEADING_SLASH_REGEX = /^\//;
+const TRAILING_SLASH_REGEX = /\/$/;
 
 /**
  * SpecKit Utilities
@@ -341,16 +341,20 @@ export function isInSpecKitFeatureDirectory(
 	specsPath: string
 ): boolean {
 	const normalized = filePath.replace(BACKSLASH_REGEX, "/");
-	const normalizedSpecs = specsPath.replace(BACKSLASH_REGEX, "/");
+	const normalizedSpecs = specsPath
+		.replace(BACKSLASH_REGEX, "/")
+		.replace(TRAILING_SLASH_REGEX, "");
 
-	if (!normalized.includes(normalizedSpecs)) {
+	// Require the specs path to match on a directory boundary so that
+	// "/workspace/specsnot-a-feature/..." does not match "/workspace/specs".
+	const prefix = `${normalizedSpecs}/`;
+	const index = normalized.indexOf(prefix);
+	if (index === -1) {
 		return false;
 	}
 
-	// Check if path contains a feature directory
-	const relativePath = normalized
-		.substring(normalizedSpecs.length)
-		.replace(LEADING_SLASH_REGEX, "");
+	// Check if the first segment after the specs path is a feature directory
+	const relativePath = normalized.substring(index + prefix.length);
 	const parts = relativePath.split("/");
 
 	return parts.length > 0 && isSpecKitFeatureDirectory(parts[0]);

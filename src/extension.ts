@@ -135,6 +135,12 @@ type HookCommandTarget = { hookId?: string } | string;
  */
 const SPEC_NAME_PATTERN = /^\d{3}-/;
 
+/**
+ * Splits a filesystem path on either separator so spec-name extraction works
+ * on both POSIX ("/") and Windows ("\\") paths.
+ */
+const PATH_SEPARATOR_PATTERN = /[\\/]/;
+
 export let outputChannel: OutputChannel;
 let acpOutputChannel: OutputChannel | null = null;
 let acpSessionManager: AcpSessionManager | null = null;
@@ -220,10 +226,6 @@ export async function activate(context: ExtensionContext) {
 		);
 		// Don't fail extension activation if agent service fails
 	}
-
-	// TODO: Initialize AgentService when implemented in Phase 2 (User Story 1)
-	// agentService = new AgentService(context, outputChannel);
-	// await agentService.initialize();
 
 	// Initialize TriggerRegistry for hooks
 	triggerRegistry = new TriggerRegistry(outputChannel);
@@ -373,7 +375,7 @@ export async function activate(context: ExtensionContext) {
 
 			try {
 				// Extract spec name from URI (e.g., "001-document-preview")
-				const pathParts = activePreviewUri.fsPath.split("/");
+				const pathParts = activePreviewUri.fsPath.split(PATH_SEPARATOR_PATTERN);
 				const specName = pathParts.find((part) =>
 					part.match(SPEC_NAME_PATTERN)
 				);
@@ -855,7 +857,7 @@ async function syncAllSpecReviewFlowSummaries(
 }
 
 function extractSpecIdFromPath(filePath: string): string | null {
-	const parts = filePath.split("/");
+	const parts = filePath.split(PATH_SEPARATOR_PATTERN);
 	return parts.find((part) => part.match(SPEC_NAME_PATTERN)) ?? null;
 }
 
@@ -2488,10 +2490,15 @@ function setupDocumentPreviewWatchers(context: ExtensionContext) {
 					`New document created: ${fileName}. Do you want to open it ? `,
 					"Open"
 				)
-				.then((selection) => {
+				.then(async (selection) => {
 					if (selection === "Open") {
-						renderPreviewForUri(uri);
+						await renderPreviewForUri(uri);
 					}
+				})
+				.then(undefined, (error: unknown) => {
+					outputChannel.appendLine(
+						`[Preview] Failed to open created document: ${error}`
+					);
 				});
 		}
 	};

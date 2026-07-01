@@ -645,8 +645,13 @@ export class HookExecutor {
 					);
 
 					// Log stack trace if available in details
-					const errorDetails = result.error.details as any;
-					if (errorDetails?.stack) {
+					const errorDetails = result.error.details;
+					if (
+						errorDetails &&
+						typeof errorDetails === "object" &&
+						"stack" in errorDetails &&
+						typeof errorDetails.stack === "string"
+					) {
 						this.outputChannel.appendLine(
 							`[HookExecutor] Stack Trace:\n${errorDetails.stack}`
 						);
