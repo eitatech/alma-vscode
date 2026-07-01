@@ -88,6 +88,7 @@ type LogFn = (message: string) => void;
  */
 export class DevinPollingService {
 	private apiClient: DevinApiClientInterface | undefined;
+	private resolvingClient: Promise<DevinApiClientInterface | null> | undefined;
 	private readonly credentials: DevinCredentialsManager | undefined;
 	private readonly storage: DevinSessionStorage;
 	private readonly intervalMs: number;
@@ -124,6 +125,25 @@ export class DevinPollingService {
 		if (this.apiClient) {
 			return this.apiClient;
 		}
+		if (!this.credentials) {
+			return null;
+		}
+		// Serialize concurrent initialization: if a resolve is already in
+		// flight (e.g. a second poll cycle fires before the first finished
+		// creating the client), reuse the same promise instead of building a
+		// second client.
+		if (this.resolvingClient) {
+			return this.resolvingClient;
+		}
+		this.resolvingClient = this.createApiClient();
+		try {
+			return await this.resolvingClient;
+		} finally {
+			this.resolvingClient = undefined;
+		}
+	}
+
+	private async createApiClient(): Promise<DevinApiClientInterface | null> {
 		if (!this.credentials) {
 			return null;
 		}
