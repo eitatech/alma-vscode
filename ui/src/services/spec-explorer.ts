@@ -153,9 +153,11 @@ export class SpecExplorerService {
 	 */
 	fetchReadyToReviewSpecs(): Promise<Specification[]> {
 		return new Promise((resolve) => {
+			let timeoutId: ReturnType<typeof setTimeout>;
 			const unsubscribe = this.on(
 				"ready-to-review:specs-updated",
 				(payload) => {
+					clearTimeout(timeoutId);
 					unsubscribe();
 					resolve(payload.specs);
 				}
@@ -164,7 +166,7 @@ export class SpecExplorerService {
 			this.sendMessage({ type: "ready-to-review:fetch" });
 
 			// Timeout after 5 seconds
-			setTimeout(() => {
+			timeoutId = setTimeout(() => {
 				unsubscribe();
 				resolve([]);
 			}, 5000);
@@ -178,7 +180,9 @@ export class SpecExplorerService {
 		Array<{ spec: Specification; changeRequest: ChangeRequest }>
 	> {
 		return new Promise((resolve) => {
+			let timeoutId: ReturnType<typeof setTimeout>;
 			const unsubscribe = this.on("changes:updated", (payload) => {
+				clearTimeout(timeoutId);
 				unsubscribe();
 				resolve(payload.items);
 			});
@@ -186,7 +190,7 @@ export class SpecExplorerService {
 			this.sendMessage({ type: "changes:fetch" });
 
 			// Timeout after 5 seconds
-			setTimeout(() => {
+			timeoutId = setTimeout(() => {
 				unsubscribe();
 				resolve([]);
 			}, 5000);
