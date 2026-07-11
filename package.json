@@ -701,6 +701,12 @@
         "icon": "$(home)"
       },
       {
+        "command": "gatomia.showMaestro",
+        "title": "Show Maestro Board",
+        "category": "GatomIA",
+        "icon": "$(kanban)"
+      },
+      {
         "command": "gatomia.speckit.constitution",
         "title": "Create Constitution",
         "category": "GatomIA"
