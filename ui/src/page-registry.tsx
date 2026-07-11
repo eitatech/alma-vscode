@@ -38,6 +38,11 @@ const AgentChatFeature = lazy(() =>
 		default: m.AgentChatFeature,
 	}))
 );
+const MaestroScreen = lazy(() =>
+	import("./features/maestro/maestro-screen").then((m) => ({
+		default: m.MaestroScreen,
+	}))
+);
 
 export type SupportedPage =
 	| "simple"
@@ -47,7 +52,8 @@ export type SupportedPage =
 	| "hooks"
 	| "document-preview"
 	| "welcome-screen"
-	| "agent-chat";
+	| "agent-chat"
+	| "maestro";
 
 function LoadingFallback() {
 	return (
@@ -88,6 +94,7 @@ const pageRenderers = {
 		</Suspense>
 	),
 	"agent-chat": () => withSuspense(AgentChatFeature),
+	maestro: () => withSuspense(MaestroScreen),
 } satisfies Record<SupportedPage, () => JSX.Element>;
 
 export const getPageRenderer = (pageName: string) => {

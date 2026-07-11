@@ -54,6 +54,8 @@ export function AgentChatFeature(): JSX.Element {
 		changeThinkingLevel,
 		changeAgentRole,
 		probeModels,
+		installProvider,
+		updateProvider,
 	} = bridge;
 
 	const latestRetryableError = useMemo(
@@ -91,8 +93,10 @@ export function AgentChatFeature(): JSX.Element {
 					agentFiles={state.catalog.agentFiles}
 					modelsLoading={state.modelsLoading}
 					onChangePermissionDefault={changePermissionDefault}
+					onInstallProvider={installProvider}
 					onProbeProviderModels={probeModels}
 					onStart={startNewSession}
+					onUpdateProvider={updateProvider}
 					permissionDefault={state.permissionDefault}
 					providers={state.catalog.providers}
 				/>

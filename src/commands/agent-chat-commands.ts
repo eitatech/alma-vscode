@@ -47,6 +47,8 @@ export const AGENT_CHAT_COMMANDS = {
 	CLEANUP_WORKTREE: "gatomia.agentChat.cleanupWorktree",
 	CHANGE_MODE: "gatomia.agentChat.changeMode",
 	CHANGE_MODEL: "gatomia.agentChat.changeModel",
+	CHANGE_THINKING_LEVEL: "gatomia.agentChat.changeThinkingLevel",
+	CHANGE_AGENT_ROLE: "gatomia.agentChat.changeAgentRole",
 	CHANGE_EXECUTION_TARGET: "gatomia.agentChat.changeExecutionTarget",
 	// T074 — User Story 4 orphan cleanup.
 	CLEANUP_ORPHANED_WORKTREE: "gatomia.agentChat.cleanupOrphanedWorktree",
@@ -70,6 +72,8 @@ export interface StartNewAcpSessionParams {
 	readonly agentDisplayName: string;
 	readonly agentCommand: string;
 	readonly mode?: string;
+	readonly thinkingLevelId?: string;
+	readonly agentRoleId?: string;
 	readonly taskInstruction?: string;
 	readonly cwd?: string;
 }
@@ -193,6 +197,16 @@ export interface ChangeModePayload {
 export interface ChangeModelPayload {
 	readonly sessionId: string;
 	readonly modelId: string;
+}
+
+export interface ChangeThinkingLevelPayload {
+	readonly sessionId: string;
+	readonly thinkingLevelId: string;
+}
+
+export interface ChangeAgentRolePayload {
+	readonly sessionId: string;
+	readonly agentRoleId: string;
 }
 
 export interface ChangeExecutionTargetPayload {
@@ -511,6 +525,50 @@ export async function handleChangeModel(
 	});
 }
 
+export async function handleChangeThinkingLevel(
+	deps: AgentChatCommandsDeps,
+	payload: ChangeThinkingLevelPayload
+): Promise<void> {
+	const session =
+		deps.registry.getSession(payload.sessionId) ??
+		(await deps.store.getSession(payload.sessionId));
+	if (!session) {
+		return;
+	}
+	if (session.selectedThinkingLevelId === payload.thinkingLevelId) {
+		return;
+	}
+	const runner = deps.registry.getRunner(payload.sessionId);
+	if (runner && hasRecordThinkingLevelChange(runner)) {
+		await runner.recordThinkingLevelChange(payload.thinkingLevelId);
+	}
+	await deps.store.updateSession(session.id, {
+		selectedThinkingLevelId: payload.thinkingLevelId,
+	});
+}
+
+export async function handleChangeAgentRole(
+	deps: AgentChatCommandsDeps,
+	payload: ChangeAgentRolePayload
+): Promise<void> {
+	const session =
+		deps.registry.getSession(payload.sessionId) ??
+		(await deps.store.getSession(payload.sessionId));
+	if (!session) {
+		return;
+	}
+	if (session.selectedAgentRoleId === payload.agentRoleId) {
+		return;
+	}
+	const runner = deps.registry.getRunner(payload.sessionId);
+	if (runner && hasRecordAgentRoleChange(runner)) {
+		await runner.recordAgentRoleChange(payload.agentRoleId);
+	}
+	await deps.store.updateSession(session.id, {
+		selectedAgentRoleId: payload.agentRoleId,
+	});
+}
+
 /**
  * Attempt to hot-swap the agent-side model via the experimental
  * `session/set_model` RPC. Returns `true` when the RPC succeeded (the
@@ -573,6 +631,28 @@ function hasRecordModelChange(
 		recordModelChange?: unknown;
 	};
 	return typeof maybe.recordModelChange === "function";
+}
+
+function hasRecordThinkingLevelChange(
+	runner: AgentChatRunnerHandle
+): runner is AgentChatRunnerHandle & {
+	recordThinkingLevelChange: (thinkingLevelId: string) => Promise<void>;
+} {
+	const maybe = runner as {
+		recordThinkingLevelChange?: unknown;
+	};
+	return typeof maybe.recordThinkingLevelChange === "function";
+}
+
+function hasRecordAgentRoleChange(
+	runner: AgentChatRunnerHandle
+): runner is AgentChatRunnerHandle & {
+	recordAgentRoleChange: (agentRoleId: string) => Promise<void>;
+} {
+	const maybe = runner as {
+		recordAgentRoleChange?: unknown;
+	};
+	return typeof maybe.recordAgentRoleChange === "function";
 }
 
 /**
@@ -650,6 +730,18 @@ export function registerAgentChatCommands(
 			AGENT_CHAT_COMMANDS.CHANGE_MODEL,
 			async (payload: ChangeModelPayload) => {
 				await handleChangeModel(deps, payload);
+			}
+		),
+		commands.registerCommand(
+			AGENT_CHAT_COMMANDS.CHANGE_THINKING_LEVEL,
+			async (payload: ChangeThinkingLevelPayload) => {
+				await handleChangeThinkingLevel(deps, payload);
+			}
+		),
+		commands.registerCommand(
+			AGENT_CHAT_COMMANDS.CHANGE_AGENT_ROLE,
+			async (payload: ChangeAgentRolePayload) => {
+				await handleChangeAgentRole(deps, payload);
 			}
 		),
 		commands.registerCommand(

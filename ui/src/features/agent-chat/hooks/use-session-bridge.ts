@@ -112,6 +112,14 @@ export interface AgentChatBridge {
 	 * session's provider.
 	 */
 	probeModels(providerId: string): void;
+	/**
+	 * Ask the host to install `providerId` from the ACP Registry.
+	 */
+	installProvider(providerId: string): void;
+	/**
+	 * Ask the host to update `providerId` to the latest registry version.
+	 */
+	updateProvider(providerId: string): void;
 }
 
 // ============================================================================
@@ -673,6 +681,26 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 		});
 	}, []);
 
+	const installProvider = useCallback((providerId: string) => {
+		if (!providerId) {
+			return;
+		}
+		vscode.postMessage({
+			type: "agent-chat/control/install-provider",
+			payload: { providerId },
+		});
+	}, []);
+
+	const updateProvider = useCallback((providerId: string) => {
+		if (!providerId) {
+			return;
+		}
+		vscode.postMessage({
+			type: "agent-chat/control/update-provider",
+			payload: { providerId },
+		});
+	}, []);
+
 	return useMemo<AgentChatBridge>(
 		() => ({
 			state,
@@ -693,6 +721,8 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 			rejectPendingWrite,
 			changePermissionDefault,
 			probeModels,
+			installProvider,
+			updateProvider,
 		}),
 		[
 			state,
@@ -713,6 +743,8 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 			rejectPendingWrite,
 			changePermissionDefault,
 			probeModels,
+			installProvider,
+			updateProvider,
 		]
 	);
 }

@@ -28,6 +28,12 @@ import {
 } from "../../../../src/services/acp/provider-bridge";
 import type { RemoteRegistryEntry } from "../../../../src/services/acp/acp-provider-registry";
 
+vi.mock("../../../../src/utils/cli-detector", () => ({
+	checkCLI: vi.fn(() => Promise.resolve({ installed: false, version: null })),
+	locateCLIExecutable: vi.fn(() => Promise.resolve(null)),
+	getExtendedPath: vi.fn(() => ""),
+}));
+
 // ---------------------------------------------------------------------------
 // Test doubles
 // ---------------------------------------------------------------------------

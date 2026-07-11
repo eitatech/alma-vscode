@@ -45,6 +45,7 @@ import {
 	window,
 	workspace,
 } from "vscode";
+import { AGENT_CHAT_COMMANDS } from "../commands/agent-chat-commands";
 import type { PendingWriteSnapshot } from "../features/agent-chat/acp-chat-runner";
 import type { AgentChatRegistry } from "../features/agent-chat/agent-chat-registry";
 import type { AgentChatSessionStore } from "../features/agent-chat/agent-chat-session-store";
@@ -72,6 +73,7 @@ import {
 	type AgentChatCatalogSources,
 	type AgentChatProviderOption,
 } from "../features/agent-chat/agent-chat-catalog";
+import { AcpAgentInstaller } from "../services/acp/acp-agent-installer";
 import { getWebviewContent } from "../utils/get-webview-content";
 
 // ---------------------------------------------------------------------------
@@ -161,14 +163,23 @@ export class AgentChatViewProvider
 	private readonly disposables: Disposable[] = [];
 	private binding: SidebarSessionBinding | undefined;
 	private pendingFocusSessionId: string | undefined;
+	private readonly installer: AcpAgentInstaller;
 	/**
 	 * Cache of the most recent {@link AcpProviderDescriptor.probe} result
 	 * per provider id. Populated asynchronously by `refreshProbes()` and
 	 * fed into {@link buildAgentChatCatalog} so the picker can mark
-	 * locally-installed providers as `installed` and locally-missing
-	 * known agents as `install-required` regardless of `descriptor.source`.
+	 * locally-installed providers as `installed`, missing providers as
+	 * `install-required`, and out-of-date providers as `update-available`
+	 * regardless of `descriptor.source`.
 	 */
-	private readonly probeCache: Map<string, { installed: boolean }> = new Map();
+	private readonly probeCache: Map<
+		string,
+		{
+			installed: boolean;
+			version?: string | null;
+			latestVersion?: string | null;
+		}
+	> = new Map();
 	private probeRefreshInFlight: Promise<void> | undefined;
 
 	/** Per-provider in-flight probe markers, surfaced to the webview via `catalog/loaded`. */
@@ -176,6 +187,9 @@ export class AgentChatViewProvider
 
 	constructor(options: AgentChatViewProviderOptions) {
 		this.options = options;
+		this.installer = new AcpAgentInstaller({
+			outputChannel: options.outputChannel,
+		});
 
 		// Whenever the registry mutates we rebroadcast the session list so
 		// the header dropdown stays in sync without polling.
@@ -473,6 +487,24 @@ export class AgentChatViewProvider
 				}
 				return;
 			}
+			case "agent-chat/control/install-provider": {
+				const installProviderId = (
+					msg.payload as { providerId?: string } | undefined
+				)?.providerId;
+				if (installProviderId) {
+					await this.handleInstallProvider(installProviderId, "install");
+				}
+				return;
+			}
+			case "agent-chat/control/update-provider": {
+				const updateProviderId = (
+					msg.payload as { providerId?: string } | undefined
+				)?.providerId;
+				if (updateProviderId) {
+					await this.handleInstallProvider(updateProviderId, "update");
+				}
+				return;
+			}
 			default:
 				if (this.binding) {
 					await this.binding.handleWebviewMessage(msg);
@@ -547,6 +579,51 @@ export class AgentChatViewProvider
 				`[AgentChatView] permissionDefault update failed: ${err instanceof Error ? err.message : String(err)}`
 			);
 		}
+	}
+
+	/**
+	 * Installs or updates the requested provider. The operation is
+	 * delegated to {@link AcpAgentInstaller}; on success the probe cache
+	 * is invalidated and re-probed so the catalog reflects the new state.
+	 */
+	private async handleInstallProvider(
+		providerId: string,
+		action: "install" | "update"
+	): Promise<void> {
+		const descriptor =
+			this.options.catalogSources.acpProviderRegistry?.get(providerId);
+		if (!descriptor) {
+			window.showErrorMessage(`Unknown provider: ${providerId}`);
+			return;
+		}
+
+		await this.postMessage({
+			type: "agent-chat/provider/install-started",
+			payload: { providerId, action },
+		}).catch(noop);
+
+		const result =
+			action === "install"
+				? await this.installer.install(descriptor)
+				: await this.installer.update(descriptor);
+
+		if (result.success) {
+			window.showInformationMessage(result.message);
+			this.probeCache.delete(providerId);
+			this.scheduleProbeRefresh();
+		} else {
+			window.showErrorMessage(result.message);
+		}
+
+		await this.postMessage({
+			type: "agent-chat/provider/install-finished",
+			payload: {
+				providerId,
+				action,
+				success: result.success,
+				message: result.message,
+			},
+		}).catch(noop);
 	}
 
 	// ------------------------------------------------------------------
@@ -734,7 +811,7 @@ export class AgentChatViewProvider
 		const results = await Promise.allSettled(
 			descriptors.map(async (descriptor) => {
 				const probe = await descriptor.probe();
-				return { id: descriptor.id, installed: probe.installed };
+				return { id: descriptor.id, probe };
 			})
 		);
 		let mutated = false;
@@ -742,10 +819,19 @@ export class AgentChatViewProvider
 			if (outcome.status !== "fulfilled") {
 				continue;
 			}
-			const { id, installed } = outcome.value;
+			const { id, probe } = outcome.value;
 			const previous = this.probeCache.get(id);
-			if (!previous || previous.installed !== installed) {
-				this.probeCache.set(id, { installed });
+			const next = {
+				installed: probe.installed,
+				version: probe.version,
+				latestVersion: probe.latestVersion,
+			};
+			if (
+				!previous ||
+				previous.installed !== next.installed ||
+				previous.version !== next.version
+			) {
+				this.probeCache.set(id, next);
 				mutated = true;
 			}
 		}
@@ -1068,6 +1154,45 @@ class SidebarSessionBinding {
 			case "agent-chat/control/retry":
 				await this.routeToRunner("retry");
 				return;
+			case "agent-chat/control/change-mode":
+				await this.routeChange(
+					AGENT_CHAT_COMMANDS.CHANGE_MODE,
+					message.payload as { sessionId?: string; modeId?: string },
+					"modeId"
+				);
+				return;
+			case "agent-chat/control/change-model":
+				await this.routeChange(
+					AGENT_CHAT_COMMANDS.CHANGE_MODEL,
+					message.payload as { sessionId?: string; modelId?: string },
+					"modelId"
+				);
+				return;
+			case "agent-chat/control/change-thinking-level":
+				await this.routeChange(
+					AGENT_CHAT_COMMANDS.CHANGE_THINKING_LEVEL,
+					message.payload as {
+						sessionId?: string;
+						thinkingLevelId?: string;
+					},
+					"thinkingLevelId"
+				);
+				return;
+			case "agent-chat/control/change-agent-role":
+				await this.routeChange(
+					AGENT_CHAT_COMMANDS.CHANGE_AGENT_ROLE,
+					message.payload as { sessionId?: string; agentRoleId?: string },
+					"agentRoleId"
+				);
+				return;
+			case "agent-chat/control/change-target":
+				await this.routeChangeTarget(
+					message.payload as {
+						sessionId?: string;
+						target?: { kind?: string };
+					}
+				);
+				return;
 			case "agent-chat/pending-writes/accept-all":
 				this.flushPendingWrites({ kind: "accept-all" });
 				return;
@@ -1088,6 +1213,52 @@ class SidebarSessionBinding {
 				return;
 			default:
 				return;
+		}
+	}
+
+	private async routeChange(
+		command: string,
+		payload: { sessionId?: string; [key: string]: unknown },
+		valueKey: string
+	): Promise<void> {
+		const sessionId = payload.sessionId ?? this.sessionId;
+		const value = payload[valueKey];
+		if (!sessionId || typeof value !== "string" || value.length === 0) {
+			return;
+		}
+		try {
+			await commands.executeCommand(command, { sessionId, [valueKey]: value });
+		} catch (err) {
+			this.options.outputChannel?.appendLine(
+				`[AgentChatView] routeChange failed: ${err instanceof Error ? err.message : String(err)}`
+			);
+		}
+	}
+
+	private async routeChangeTarget(payload: {
+		sessionId?: string;
+		target?: { kind?: string };
+	}): Promise<void> {
+		const sessionId = payload.sessionId ?? this.sessionId;
+		const kind = payload.target?.kind;
+		if (
+			!sessionId ||
+			(kind !== "local" && kind !== "worktree" && kind !== "cloud")
+		) {
+			return;
+		}
+		try {
+			await commands.executeCommand(
+				AGENT_CHAT_COMMANDS.CHANGE_EXECUTION_TARGET,
+				{
+					sessionId,
+					target: { kind },
+				}
+			);
+		} catch (err) {
+			this.options.outputChannel?.appendLine(
+				`[AgentChatView] routeChangeTarget failed: ${err instanceof Error ? err.message : String(err)}`
+			);
 		}
 	}
 

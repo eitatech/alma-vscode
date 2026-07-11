@@ -97,6 +97,8 @@ import {
 } from "./features/spec/review-flow/commands/send-to-archived-command";
 import { WelcomeScreenPanel } from "./panels/welcome-screen-panel";
 import { WelcomeScreenProvider } from "./providers/welcome-screen-provider";
+import { MaestroPanel } from "./panels/maestro-panel";
+import { MaestroProvider } from "./providers/maestro-provider";
 import {
 	shouldShowWelcomeAutomatically,
 	markWelcomeAsShown,
@@ -108,7 +110,7 @@ import {
 import { registerDevinCommands } from "./commands/devin-commands";
 import { DevinCredentialsManager } from "./features/devin/devin-credentials-manager";
 import { DevinSessionManager } from "./features/devin/devin-session-manager";
-import { DevinSessionStorage } from "./features/devin/devin-session-storage";
+import { DevinSessionStorage as DevinSessionStorageImpl } from "./features/devin/devin-session-storage";
 import { DevinPollingService } from "./features/devin/devin-polling-service";
 import { SessionCleanupService } from "./features/devin/session-cleanup";
 import { disposeCloudAgentsOutputChannel } from "./features/cloud-agents/logging";
@@ -613,7 +615,9 @@ Tasks:
 		const devinCredentialsManager = new DevinCredentialsManager(
 			context.secrets
 		);
-		const devinSessionStorage = new DevinSessionStorage(context.workspaceState);
+		const devinSessionStorage = new DevinSessionStorageImpl(
+			context.workspaceState
+		);
 		const devinSessionManager = new DevinSessionManager(
 			devinSessionStorage,
 			devinCredentialsManager
@@ -785,7 +789,7 @@ Tasks:
 
 async function handleDevinPrStateChange(
 	event: import("./features/devin/devin-polling-service").PrStateChangeEvent,
-	storage: DevinSessionStorage
+	storage: DevinSessionStorageImpl
 ): Promise<void> {
 	if (event.newState !== "merged") {
 		return;
@@ -1754,6 +1758,49 @@ function registerCommands({
 				const message = error instanceof Error ? error.message : String(error);
 				outputChannel.appendLine(`[Welcome] Failed to show: ${message} `);
 				window.showErrorMessage(`Failed to show welcome screen: ${message} `);
+			}
+		}),
+
+		commands.registerCommand("gatomia.showMaestro", async () => {
+			outputChannel.appendLine("Showing Maestro Board...");
+			try {
+				const { AgentSessionStorage } = await import(
+					"./features/cloud-agents/agent-session-storage"
+				);
+				const { DevinSessionStorage: DevinSessionStorageClass } = await import(
+					"./features/devin/devin-session-storage"
+				);
+				const { AgentChatSessionStore } = await import(
+					"./features/agent-chat/agent-chat-session-store"
+				);
+				const { createVscodeArchiveWriter } = await import(
+					"./features/agent-chat/vscode-archive-writer"
+				);
+
+				const sessionStorage = new AgentSessionStorage(context.workspaceState);
+				const devinStorage = new DevinSessionStorageClass(
+					context.workspaceState
+				);
+				const archive = createVscodeArchiveWriter(context.globalStorageUri);
+				const chatStore = new AgentChatSessionStore({
+					workspaceState: context.workspaceState,
+					archive,
+				});
+				await chatStore.initialize();
+
+				const provider = new MaestroProvider({
+					context,
+					output: outputChannel,
+					agentSessionStorage: sessionStorage,
+					devinSessionStorage: devinStorage,
+					agentChatSessionStore: chatStore,
+				});
+
+				MaestroPanel.showWithProvider(context, outputChannel, provider);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				outputChannel.appendLine(`[Maestro] Failed to show: ${message} `);
+				window.showErrorMessage(`Failed to show Maestro Board: ${message} `);
 			}
 		}),
 
@@ -2955,6 +3002,9 @@ async function bootstrapAgentChat(
 					agentDisplayName: params.agentDisplayName,
 					capabilities: { source: "none" },
 					selectedModeId: params.mode,
+					selectedModelId: params.mode,
+					selectedThinkingLevelId: params.thinkingLevelId,
+					selectedAgentRoleId: params.agentRoleId,
 					executionTarget: { kind: "local" },
 					trigger: { kind: "user" },
 					worktree: null,

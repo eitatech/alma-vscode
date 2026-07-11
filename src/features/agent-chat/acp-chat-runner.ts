@@ -741,6 +741,18 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 	}
 
 	private async handleTurnFinished(stopReason: string): Promise<void> {
+		// Multiple event sources can signal the end of a turn (the ACP
+		// prompt promise and the turn-finished event). Ignore duplicates.
+		const hasInFlightMessage =
+			this.turnInFlight ||
+			this.inFlightAgentMessageId !== undefined ||
+			this.inFlightThoughtMessageId !== undefined ||
+			this.inFlightPlanMessageId !== undefined;
+		if (!hasInFlightMessage) {
+			return;
+		}
+		this.turnInFlight = false;
+
 		if (this.inFlightAgentMessageId) {
 			await this.store.updateMessages(this.sessionId, [
 				{
@@ -784,7 +796,6 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 			at: this.now(),
 		});
 
-		this.turnInFlight = false;
 		this.turnBuffer = "";
 		this.inFlightAgentMessageId = undefined;
 		this.thoughtBuffer = "";
@@ -1031,6 +1042,60 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 				role: "system",
 				kind: "model-changed",
 				content: `Model changed to ${modelId}.`,
+			},
+		]);
+	}
+
+	/**
+	 * Append a `SystemChatMessage { kind: "thinking-level-changed" }` to the
+	 * transcript so the user can audit the selection.
+	 */
+	async recordThinkingLevelChange(thinkingLevelId: string): Promise<void> {
+		if (this.disposed) {
+			return;
+		}
+		if (this.session.selectedThinkingLevelId === thinkingLevelId) {
+			return;
+		}
+		const ts = this.now();
+		const sequence = this.nextSequence;
+		this.nextSequence += 1;
+		await this.store.appendMessages(this.sessionId, [
+			{
+				id: randomUUID(),
+				sessionId: this.sessionId,
+				timestamp: ts,
+				sequence,
+				role: "system",
+				kind: "thinking-level-changed",
+				content: `Thinking level changed to ${thinkingLevelId}.`,
+			},
+		]);
+	}
+
+	/**
+	 * Append a `SystemChatMessage { kind: "agent-role-changed" }` to the
+	 * transcript so the user can audit the selection.
+	 */
+	async recordAgentRoleChange(agentRoleId: string): Promise<void> {
+		if (this.disposed) {
+			return;
+		}
+		if (this.session.selectedAgentRoleId === agentRoleId) {
+			return;
+		}
+		const ts = this.now();
+		const sequence = this.nextSequence;
+		this.nextSequence += 1;
+		await this.store.appendMessages(this.sessionId, [
+			{
+				id: randomUUID(),
+				sessionId: this.sessionId,
+				timestamp: ts,
+				sequence,
+				role: "system",
+				kind: "agent-role-changed",
+				content: `Agent role changed to ${agentRoleId}.`,
 			},
 		]);
 	}

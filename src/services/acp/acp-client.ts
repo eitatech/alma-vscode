@@ -221,24 +221,12 @@ const SET_MODEL_NOT_SUPPORTED_PATTERN = /method not found|not supported/i;
  * downstream code treats "no model state" as "agent did not surface
  * dynamic models".
  */
-function normaliseSessionModelState(
-	raw: unknown
-): AcpSessionModelState | undefined {
-	if (!raw || typeof raw !== "object") {
-		return;
+function parseAvailableModels(raw: unknown): AcpModelInfo[] {
+	if (!Array.isArray(raw)) {
+		return [];
 	}
-	const candidate = raw as {
-		availableModels?: unknown;
-		currentModelId?: unknown;
-	};
-	if (typeof candidate.currentModelId !== "string") {
-		return;
-	}
-	const availableRaw = Array.isArray(candidate.availableModels)
-		? candidate.availableModels
-		: [];
 	const availableModels: AcpModelInfo[] = [];
-	for (const entry of availableRaw) {
+	for (const entry of raw) {
 		if (!entry || typeof entry !== "object") {
 			continue;
 		}
@@ -256,10 +244,37 @@ function normaliseSessionModelState(
 			description: typeof e.description === "string" ? e.description : null,
 		});
 	}
-	return {
-		availableModels,
-		currentModelId: candidate.currentModelId,
+	return availableModels;
+}
+
+function normaliseSessionModelState(
+	raw: unknown
+): AcpSessionModelState | undefined {
+	if (!raw || typeof raw !== "object") {
+		return;
+	}
+	const candidate = raw as {
+		availableModels?: unknown;
+		currentModelId?: unknown;
 	};
+	const availableModels = parseAvailableModels(candidate.availableModels);
+
+	// Agents are allowed to omit currentModelId or return the current
+	// model as the first entry of availableModels. Fall back to the
+	// first available model so the UI still has a selection to display.
+	let currentModelId: string | undefined;
+	if (
+		typeof candidate.currentModelId === "string" &&
+		candidate.currentModelId.length > 0
+	) {
+		currentModelId = candidate.currentModelId;
+	} else if (availableModels.length > 0) {
+		currentModelId = availableModels[0].modelId;
+	}
+	if (!currentModelId) {
+		return;
+	}
+	return { availableModels, currentModelId };
 }
 
 interface SessionEntry {
@@ -412,16 +427,26 @@ export class AcpClient {
 
 	/** Fan out an event to every subscriber for a session. Best-effort. */
 	private emitSessionEvent(sessionId: string, event: AcpSessionEvent): void {
-		const bucket = this.sessionListeners.get(sessionId);
-		if (!bucket || bucket.size === 0) {
-			return;
+		// Listeners may register with either the agent's ACP sessionId or
+		// the host-minted sessionKey. Both buckets must receive the event.
+		const keys = new Set<string>();
+		keys.add(sessionId);
+		const sessionKey = this.findSessionKeyByAcpId(sessionId);
+		if (sessionKey) {
+			keys.add(sessionKey);
 		}
-		// Snapshot to tolerate listeners that dispose themselves during delivery.
-		for (const listener of [...bucket]) {
-			try {
-				listener(event);
-			} catch {
-				// Best-effort fanout; never let a misbehaving listener break ACP.
+		for (const key of keys) {
+			const bucket = this.sessionListeners.get(key);
+			if (!bucket || bucket.size === 0) {
+				continue;
+			}
+			// Snapshot to tolerate listeners that dispose themselves during delivery.
+			for (const listener of [...bucket]) {
+				try {
+					listener(event);
+				} catch {
+					// Best-effort fanout; never let a misbehaving listener break ACP.
+				}
 			}
 		}
 	}
@@ -477,6 +502,14 @@ export class AcpClient {
 			this.output.appendLine(
 				`[ACP][${this.descriptor.id}] turn finished (stopReason=${result.stopReason})`
 			);
+			this.emitSessionEvent(sessionId, {
+				kind: "turn-finished",
+				stopReason:
+					typeof result.stopReason === "string"
+						? result.stopReason
+						: "end_turn",
+				at: Date.now(),
+			});
 		} finally {
 			// Single-shot sessions should not accumulate: the next prompt with the
 			// same key would be a new one-off anyway.

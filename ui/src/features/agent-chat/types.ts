@@ -344,7 +344,8 @@ export interface AgentChatSessionView {
 export type ProviderAvailability =
 	| "installed"
 	| "available-via-npx"
-	| "install-required";
+	| "install-required"
+	| "update-available";
 
 export interface AgentChatProviderOption {
 	id: string;
@@ -355,6 +356,14 @@ export interface AgentChatProviderOption {
 	source: "built-in" | "local" | "remote";
 	npxPackage?: string;
 	installUrl?: string;
+	/** Version currently installed on the host, when detected. */
+	version?: string | null;
+	/** Version available in the registry / catalog. */
+	latestVersion?: string | null;
+	/** Command string that installs the agent (shown / executed by the UI). */
+	installCommand?: string;
+	/** Command string that updates the agent to `latestVersion` (shown / executed by the UI). */
+	updateCommand?: string;
 	models: ModelDescriptor[];
 	/**
 	 * Static catalogue of thinking levels — empty array hides the chip

@@ -27,8 +27,10 @@ import {
 	type ExtensionContext,
 	ViewColumn,
 	type WebviewPanel,
+	commands,
 	window,
 } from "vscode";
+import { AGENT_CHAT_COMMANDS } from "../commands/agent-chat-commands";
 import { getWebviewContent } from "../utils/get-webview-content";
 import type {
 	AgentChatPanelLike,
@@ -321,9 +323,100 @@ export class AgentChatPanel {
 			case "agent-chat/control/retry":
 				await this.routeToRunner("retry");
 				break;
+			case "agent-chat/control/change-mode":
+				await this.routeChange(
+					AGENT_CHAT_COMMANDS.CHANGE_MODE,
+					message.payload as { sessionId?: string; modeId?: string },
+					"modeId"
+				);
+				break;
+			case "agent-chat/control/change-model":
+				await this.routeChange(
+					AGENT_CHAT_COMMANDS.CHANGE_MODEL,
+					message.payload as { sessionId?: string; modelId?: string },
+					"modelId"
+				);
+				break;
+			case "agent-chat/control/change-thinking-level":
+				await this.routeChange(
+					AGENT_CHAT_COMMANDS.CHANGE_THINKING_LEVEL,
+					message.payload as {
+						sessionId?: string;
+						thinkingLevelId?: string;
+					},
+					"thinkingLevelId"
+				);
+				break;
+			case "agent-chat/control/change-agent-role":
+				await this.routeChange(
+					AGENT_CHAT_COMMANDS.CHANGE_AGENT_ROLE,
+					message.payload as { sessionId?: string; agentRoleId?: string },
+					"agentRoleId"
+				);
+				break;
+			case "agent-chat/control/change-target":
+				await this.routeChangeTarget(
+					message.payload as {
+						sessionId?: string;
+						target?: { kind?: string };
+					}
+				);
+				break;
 			default:
 				// Unknown / deferred message types log but never crash.
 				break;
+		}
+	}
+
+	private async routeChange(
+		command: string,
+		payload: { sessionId?: string; [key: string]: unknown },
+		valueKey: string
+	): Promise<void> {
+		const sessionId = payload.sessionId ?? this.session.id;
+		const value = payload[valueKey];
+		if (!sessionId || typeof value !== "string" || value.length === 0) {
+			return;
+		}
+		try {
+			await commands.executeCommand(command, { sessionId, [valueKey]: value });
+		} catch (err) {
+			logTelemetry(AGENT_CHAT_TELEMETRY_EVENTS.ERROR, {
+				sessionId: this.session.id,
+				stage: "routeChange",
+				error: err instanceof Error ? err.message : String(err),
+				surface: "panel",
+			});
+		}
+	}
+
+	private async routeChangeTarget(payload: {
+		sessionId?: string;
+		target?: { kind?: string };
+	}): Promise<void> {
+		const sessionId = payload.sessionId ?? this.session.id;
+		const kind = payload.target?.kind;
+		if (
+			!sessionId ||
+			(kind !== "local" && kind !== "worktree" && kind !== "cloud")
+		) {
+			return;
+		}
+		try {
+			await commands.executeCommand(
+				AGENT_CHAT_COMMANDS.CHANGE_EXECUTION_TARGET,
+				{
+					sessionId,
+					target: { kind },
+				}
+			);
+		} catch (err) {
+			logTelemetry(AGENT_CHAT_TELEMETRY_EVENTS.ERROR, {
+				sessionId: this.session.id,
+				stage: "routeChangeTarget",
+				error: err instanceof Error ? err.message : String(err),
+				surface: "panel",
+			});
 		}
 	}
 
@@ -335,6 +428,14 @@ export class AgentChatPanel {
 			(await this.store.getSession(this.session.id)) ?? this.session;
 		const transcript = this.readTranscript(current.id);
 		const isReadOnly = current.source === "cloud";
+		const availableModels = current.availableModels ?? [];
+		const currentModelId = current.currentModelId ?? current.selectedModelId;
+		const availableThinkingLevels = current.availableThinkingLevels?.length
+			? current.availableThinkingLevels
+			: undefined;
+		const availableAgentRoles = current.availableAgentRoles?.length
+			? current.availableAgentRoles
+			: undefined;
 		await this.panel.webview.postMessage({
 			type: "agent-chat/session/loaded",
 			payload: {
@@ -344,6 +445,12 @@ export class AgentChatPanel {
 					agentDisplayName: current.agentDisplayName,
 					selectedModeId: current.selectedModeId,
 					selectedModelId: current.selectedModelId,
+					availableModels,
+					currentModelId,
+					selectedThinkingLevelId: current.selectedThinkingLevelId,
+					selectedAgentRoleId: current.selectedAgentRoleId,
+					availableThinkingLevels,
+					availableAgentRoles,
 					executionTarget: {
 						kind: current.executionTarget.kind,
 						label: executionTargetLabel(current.executionTarget.kind),
@@ -368,7 +475,7 @@ export class AgentChatPanel {
 				},
 				messages: transcript,
 				availableModes: [],
-				availableModels: [],
+				availableModels,
 				availableTargets: [
 					{ kind: "local", label: "Local", enabled: true },
 					{ kind: "worktree", label: "Worktree", enabled: true },

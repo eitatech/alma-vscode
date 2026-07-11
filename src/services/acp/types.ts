@@ -64,6 +64,11 @@ export interface AcpProviderProbe {
 	error?: string;
 	canRunViaNpx?: boolean;
 	npxPackage?: string;
+	/**
+	 * Version available in the registry / catalog. Used by the UI to
+	 * surface an "update" action when `version` differs from `latestVersion`.
+	 */
+	latestVersion?: string | null;
 }
 
 export type SessionMode = "workspace" | "per-spec" | "per-prompt";
@@ -107,6 +112,22 @@ export interface AcpProviderDescriptor {
 	description?: string;
 	/** Optional icon URL surfaced by remote registry entries. */
 	iconUrl?: string;
+	/**
+	 * Version available in the registry / catalog. Used by the UI to
+	 * offer an update action when the local installation is older.
+	 */
+	latestVersion?: string;
+	/**
+	 * Optional command string that installs the agent. The UI can offer
+	 * a one-click copy/run action for this command when the agent is
+	 * not installed.
+	 */
+	installCommand?: string;
+	/**
+	 * Optional command string that updates the agent to `latestVersion`.
+	 * The UI can offer a one-click update action when `version` differs.
+	 */
+	updateCommand?: string;
 	/** Probe implementation. Must never throw; returns probe info. */
 	probe(timeoutMs?: number): Promise<AcpProviderProbe>;
 }

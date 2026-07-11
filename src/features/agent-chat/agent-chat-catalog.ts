@@ -39,7 +39,8 @@ import type {
 export type ProviderAvailability =
 	| "installed"
 	| "available-via-npx"
-	| "install-required";
+	| "install-required"
+	| "update-available";
 
 export interface AgentChatProviderOption {
 	readonly id: string;
@@ -54,6 +55,14 @@ export interface AgentChatProviderOption {
 	readonly npxPackage?: string;
 	/** External URL to install the provider when `availability === "install-required"`. */
 	readonly installUrl?: string;
+	/** Version currently installed on the host, when detected. */
+	readonly version?: string | null;
+	/** Version available in the registry / catalog. */
+	readonly latestVersion?: string | null;
+	/** Command string that installs the agent (shown / executed by the UI). */
+	readonly installCommand?: string;
+	/** Command string that updates the agent to `latestVersion` (shown / executed by the UI). */
+	readonly updateCommand?: string;
 	/** Static model catalogue from `agent-capabilities-catalog.ts`. */
 	readonly models: readonly ModelDescriptor[];
 	/**
@@ -91,9 +100,13 @@ export interface AgentChatCatalog {
  * outcome per provider id. When supplied, `classifyAvailability` honours
  * the real `installed` flag and downgrades providers whose binary is
  * missing from "installed" to "install-required" — even though they are
- * `source: "local"`.
+ * `source: "local"`. It also stores the detected version so the UI can
+ * surface install / update actions.
  */
-export type ProviderProbeCache = ReadonlyMap<string, { installed: boolean }>;
+export type ProviderProbeCache = ReadonlyMap<
+	string,
+	{ installed: boolean; version?: string | null; latestVersion?: string | null }
+>;
 
 export interface AgentChatCatalogSources {
 	readonly acpProviderRegistry: AcpProviderRegistry | null | undefined;
@@ -133,6 +146,7 @@ function projectProviders(
 				? descriptor.spawnArgs[1]
 				: undefined;
 		const catalogEntry = lookupCatalogEntry(descriptor.id);
+		const probed = probeCache?.get(descriptor.id);
 		return {
 			id: descriptor.id,
 			displayName: descriptor.displayName,
@@ -142,6 +156,10 @@ function projectProviders(
 			source,
 			npxPackage,
 			installUrl: descriptor.installUrl || undefined,
+			version: probed?.version ?? null,
+			latestVersion: descriptor.latestVersion ?? probed?.latestVersion ?? null,
+			installCommand: descriptor.installCommand,
+			updateCommand: descriptor.updateCommand,
 			models: catalogEntry?.capabilities?.models ?? [],
 			thinkingLevels: catalogEntry?.capabilities?.thinkingLevels ?? [],
 			agentRoles: catalogEntry?.capabilities?.agentRoles ?? [],
@@ -155,6 +173,7 @@ function classifyAvailability(
 		source?: "built-in" | "local" | "remote";
 		spawnCommand: string;
 		spawnArgs: string[];
+		latestVersion?: string;
 	},
 	probeCache: ProviderProbeCache | undefined
 ): ProviderAvailability {
@@ -165,6 +184,10 @@ function classifyAvailability(
 		// picker can disable it; a remote agent whose binary is on the user's
 		// PATH must surface as "installed".
 		if (probed.installed) {
+			const latestVersion = descriptor.latestVersion ?? probed.latestVersion;
+			if (latestVersion && probed.version && latestVersion !== probed.version) {
+				return "update-available";
+			}
 			return "installed";
 		}
 		// Probed and missing: still let npx-runnable remote agents show as
