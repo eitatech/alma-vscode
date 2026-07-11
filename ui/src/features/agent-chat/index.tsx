@@ -176,6 +176,7 @@ export function AgentChatFeature(): JSX.Element {
 				onSubmit={submit}
 				permissionDefault={state.permissionDefault}
 				providerDisplayName={session.agentDisplayName}
+				providerIconUrl={session.iconUrl}
 				providerId={deriveProviderIdForSession(session)}
 				readOnly={session.isReadOnly}
 				readOnlyReason={

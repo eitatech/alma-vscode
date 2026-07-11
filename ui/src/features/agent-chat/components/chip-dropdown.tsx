@@ -42,7 +42,10 @@ export interface ChipDropdownOption<T extends string> {
 	readonly value: T;
 	readonly label: string;
 	readonly description?: string;
+	/** Codicon class (e.g. `codicon-robot`) rendered when no `iconUrl` is set. */
 	readonly icon?: string;
+	/** Optional image URL rendered instead of a codicon when present. */
+	readonly iconUrl?: string;
 	readonly disabled?: boolean;
 }
 
@@ -51,6 +54,8 @@ export interface ChipDropdownProps<T extends string> {
 	readonly ariaPrefix: string;
 	/** Optional codicon class rendered on the left of the toggle. */
 	readonly icon?: string;
+	/** Optional image URL rendered instead of the codicon when present. */
+	readonly iconUrl?: string;
 	/** Short label rendered inside the chip toggle (current selection). */
 	readonly currentLabel: string;
 	/** Currently selected option value (matched against `options[i].value`). */
@@ -78,9 +83,36 @@ export interface ChipDropdownProps<T extends string> {
 	readonly iconOnly?: boolean;
 }
 
+/** Renders an icon from either a remote image URL or a codicon class. */
+function ChipIcon({
+	iconUrl,
+	icon,
+}: {
+	iconUrl?: string;
+	icon?: string;
+}): JSX.Element | null {
+	if (iconUrl) {
+		return (
+			<img
+				alt=""
+				aria-hidden="true"
+				className="agent-chat-chip__icon-img"
+				height={14}
+				src={iconUrl}
+				width={14}
+			/>
+		);
+	}
+	if (icon) {
+		return <i aria-hidden="true" className={`codicon ${icon}`} />;
+	}
+	return null;
+}
+
 export function ChipDropdown<T extends string>({
 	ariaPrefix,
 	icon,
+	iconUrl,
 	currentLabel,
 	value,
 	options,
@@ -140,7 +172,7 @@ export function ChipDropdown<T extends string>({
 				title={tooltip}
 				type="button"
 			>
-				{icon ? <i aria-hidden="true" className={`codicon ${icon}`} /> : null}
+				<ChipIcon icon={icon} iconUrl={iconUrl} />
 				{iconOnly ? null : (
 					<span className="agent-chat-chip__label">{currentLabel}</span>
 				)}
@@ -167,9 +199,7 @@ export function ChipDropdown<T extends string>({
 							role="menuitem"
 							type="button"
 						>
-							{option.icon ? (
-								<i aria-hidden="true" className={`codicon ${option.icon}`} />
-							) : null}
+							<ChipIcon icon={option.icon} iconUrl={option.iconUrl} />
 							<span className="agent-chat-chip__item-text">
 								<span className="agent-chat-chip__item-label">
 									{option.label}

@@ -463,6 +463,10 @@ function applyPatch(
 		}
 		case "agent":
 			return { ...message, ...(patch as Partial<typeof message>) };
+		case "thought":
+			return { ...message, ...(patch as Partial<typeof message>) };
+		case "plan":
+			return { ...message, ...(patch as Partial<typeof message>) };
 		case "system":
 			return { ...message, ...(patch as Partial<typeof message>) };
 		case "tool":

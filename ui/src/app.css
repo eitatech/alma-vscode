@@ -1959,6 +1959,13 @@ b {
 	max-width: 130px;
 }
 
+.agent-chat-chip__icon-img {
+	width: 14px;
+	height: 14px;
+	object-fit: contain;
+	flex-shrink: 0;
+}
+
 .agent-chat-chip__menu {
 	position: absolute;
 	bottom: calc(100% + 4px);

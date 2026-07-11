@@ -335,6 +335,12 @@ export interface AgentChatSessionView {
 		providerDisplayName: string;
 		externalUrl?: string;
 	};
+	/**
+	 * Optional icon URL from the remote registry, used to render the
+	 * provider chip logo instead of a codicon approximation when
+	 * available.
+	 */
+	iconUrl?: string;
 }
 
 // ============================================================================
@@ -356,6 +362,8 @@ export interface AgentChatProviderOption {
 	source: "built-in" | "local" | "remote";
 	npxPackage?: string;
 	installUrl?: string;
+	/** Optional icon URL from the remote registry, used when available. */
+	iconUrl?: string;
 	/** Version currently installed on the host, when detected. */
 	version?: string | null;
 	/** Version available in the registry / catalog. */

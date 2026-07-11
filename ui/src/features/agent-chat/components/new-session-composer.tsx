@@ -171,7 +171,8 @@ export function NewSessionComposer({
 				label: providerLabel(provider),
 				description: providerDescription(provider),
 				disabled: !provider.enabled,
-				icon: "codicon-robot",
+				icon: providerIconClass(provider.id),
+				iconUrl: provider.iconUrl,
 			})),
 		[providers]
 	);
@@ -340,6 +341,7 @@ export function NewSessionComposer({
 								: "codicon-robot"
 						}
 						iconOnly
+						iconUrl={selectedProvider?.iconUrl}
 						menuHeader={providerMenuHeader}
 						onChange={handleProviderChange}
 						options={providerOptions}

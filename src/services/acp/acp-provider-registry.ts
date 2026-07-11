@@ -130,6 +130,17 @@ export class AcpProviderRegistry {
 		return;
 	}
 
+	/**
+	 * Fires the {@link onDidUpdate} event so listeners (e.g. the chat
+	 * view provider) rebroadcast the catalog. Used by callers that
+	 * mutate the provider map outside of {@link loadRemoteRegistry} —
+	 * notably {@link mergeRemoteEntries} which registers descriptors
+	 * after the remote fetch has already fired the event.
+	 */
+	notifyProvidersChanged(): void {
+		this._onDidUpdate.fire();
+	}
+
 	dispose(): void {
 		this._onDidUpdate.dispose();
 	}

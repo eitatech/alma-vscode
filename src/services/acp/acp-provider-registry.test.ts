@@ -189,4 +189,37 @@ describe("AcpProviderRegistry", () => {
 			expect(loaded).toEqual([]);
 		});
 	});
+
+	describe("notifyProvidersChanged", () => {
+		it("fires the onDidUpdate event", () => {
+			const listener = vi.fn();
+			registry.onDidUpdate(listener);
+
+			registry.notifyProvidersChanged();
+
+			expect(listener).toHaveBeenCalledTimes(1);
+		});
+
+		it("fires onDidUpdate each time it is called", () => {
+			const listener = vi.fn();
+			registry.onDidUpdate(listener);
+
+			registry.notifyProvidersChanged();
+			registry.notifyProvidersChanged();
+			registry.notifyProvidersChanged();
+
+			expect(listener).toHaveBeenCalledTimes(3);
+		});
+
+		it("does not fire listeners that were disposed", () => {
+			const listener = vi.fn();
+			const sub = registry.onDidUpdate(listener);
+
+			registry.notifyProvidersChanged();
+			sub.dispose();
+			registry.notifyProvidersChanged();
+
+			expect(listener).toHaveBeenCalledTimes(1);
+		});
+	});
 });

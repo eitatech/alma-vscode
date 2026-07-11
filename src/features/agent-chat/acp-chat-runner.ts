@@ -463,6 +463,7 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 			await this.emitErrorMessage(category, error);
 			await this.transitionLifecycle("failed");
 			this.turnInFlight = false;
+			this.queuedFollowUp = undefined;
 		}
 	}
 
@@ -804,7 +805,7 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 		this.currentTurnId = undefined;
 
 		const queued = this.queuedFollowUp;
-		if (queued) {
+		if (queued && stopReason !== "timeout") {
 			this.queuedFollowUp = undefined;
 			await this.store.updateMessages(this.sessionId, [
 				{
@@ -902,6 +903,15 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 		const current = await this.store.getSession(this.sessionId);
 		const from = current?.lifecycleState ?? this.session.lifecycleState;
 		if (from === to) {
+			return;
+		}
+		// Terminal states are absorbing — once a session is
+		// completed/failed/cancelled/ended-by-shutdown no further
+		// transitions are permitted. This guards against races where
+		// an in-flight event handler tries to move the session back to
+		// a non-terminal state (e.g. `waiting-for-input`) after the
+		// catch block has already moved it to `failed`.
+		if (TERMINAL_STATES.has(from)) {
 			return;
 		}
 

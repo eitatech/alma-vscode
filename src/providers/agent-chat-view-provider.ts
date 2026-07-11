@@ -660,6 +660,8 @@ export class AgentChatViewProvider
 			registry: this.options.registry,
 			postMessage: (m) => this.postMessage(m),
 			outputChannel: this.options.outputChannel,
+			acpProviderRegistry:
+				this.options.catalogSources.acpProviderRegistry ?? undefined,
 		});
 		await this.binding.sendSessionLoaded();
 		logTelemetry(AGENT_CHAT_TELEMETRY_EVENTS.PANEL_OPENED, {
@@ -829,7 +831,8 @@ export class AgentChatViewProvider
 			if (
 				!previous ||
 				previous.installed !== next.installed ||
-				previous.version !== next.version
+				previous.version !== next.version ||
+				previous.latestVersion !== next.latestVersion
 			) {
 				this.probeCache.set(id, next);
 				mutated = true;
@@ -842,7 +845,10 @@ export class AgentChatViewProvider
 			});
 			await this.postMessage({
 				type: "agent-chat/catalog/loaded",
-				payload: { catalog },
+				payload: {
+					catalog,
+					modelsLoading: this.snapshotModelsLoading(),
+				},
 			}).catch(noop);
 		}
 	}
@@ -939,6 +945,13 @@ interface SidebarSessionBindingOptions {
 	readonly registry: AgentChatRegistry;
 	readonly postMessage: (message: unknown) => Promise<void>;
 	readonly outputChannel?: { appendLine(value: string): void };
+	/**
+	 * Optional ACP provider registry used to look up the provider
+	 * descriptor's `iconUrl` for the session view payload.
+	 */
+	readonly acpProviderRegistry?: {
+		get(id: string): { iconUrl?: string } | undefined;
+	};
 }
 
 class SidebarSessionBinding {
@@ -948,6 +961,9 @@ class SidebarSessionBinding {
 	private readonly registry: AgentChatRegistry;
 	private readonly postMessage: (message: unknown) => Promise<void>;
 	private readonly outputChannel?: { appendLine(value: string): void };
+	private readonly acpProviderRegistry?: {
+		get(id: string): { iconUrl?: string } | undefined;
+	};
 	private readonly subscriptions: Disposable[] = [];
 	private readonly knownMessageIds = new Set<string>();
 	private lastLifecycleState: SessionLifecycleState;
@@ -962,6 +978,7 @@ class SidebarSessionBinding {
 		this.registry = options.registry;
 		this.postMessage = options.postMessage;
 		this.outputChannel = options.outputChannel;
+		this.acpProviderRegistry = options.acpProviderRegistry;
 		this.lastLifecycleState = options.session.lifecycleState;
 		this.lastAvailableModelIds = (options.session.availableModels ?? []).map(
 			(m) => m.id
@@ -1073,6 +1090,8 @@ class SidebarSessionBinding {
 		const isReadOnly = current.source === "cloud";
 		const availableModels = current.availableModels ?? [];
 		const currentModelId = current.currentModelId ?? current.selectedModelId;
+		const providerDescriptor = this.acpProviderRegistry?.get(current.agentId);
+		const iconUrl = providerDescriptor?.iconUrl;
 		// Thinking levels & agent roles ride alongside the model fields:
 		// the runner persists them through the store, the view-provider
 		// projects them here, and the webview chips light up only when
@@ -1120,6 +1139,7 @@ class SidebarSessionBinding {
 								externalUrl: current.cloud.externalUrl,
 							}
 						: undefined,
+					iconUrl,
 				},
 				messages: transcript,
 				availableModes: [],

@@ -198,11 +198,18 @@ export interface AcpClientOptions {
 	 * toggled on per workspace.
 	 */
 	bufferFileWrites?: boolean;
+	/**
+	 * Maximum time (ms) to wait for a single `prompt` turn to complete
+	 * before rejecting with a timeout error. Defaults to 5 minutes.
+	 * Set to 0 or a non-finite value to disable the timeout.
+	 */
+	promptTimeoutMs?: number;
 }
 
 const ALLOW_KINDS = new Set(["allow_once", "allow_always"]);
 const REJECT_KINDS = new Set(["reject_once", "reject_always"]);
 const DEFAULT_INITIALIZE_TIMEOUT_MS = 15_000;
+const DEFAULT_PROMPT_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
 const ONCE_SESSION_KEY_PREFIX = "once:";
 
 /**
@@ -303,6 +310,7 @@ export class AcpClient {
 	private permissionDefault: PermissionMode;
 	private readonly promptForPermission: PermissionPrompter | undefined;
 	private readonly initializeTimeoutMs: number;
+	private readonly promptTimeoutMs: number;
 	private connection: ClientSideConnection | null = null;
 	private process: ChildProcess | null = null;
 	private readonly sessions = new Map<string, SessionEntry>();
@@ -350,6 +358,7 @@ export class AcpClient {
 		this.promptForPermission = options.promptForPermission;
 		this.initializeTimeoutMs =
 			options.initializeTimeoutMs ?? DEFAULT_INITIALIZE_TIMEOUT_MS;
+		this.promptTimeoutMs = options.promptTimeoutMs ?? DEFAULT_PROMPT_TIMEOUT_MS;
 		this.bufferFileWrites = options.bufferFileWrites ?? false;
 	}
 
@@ -495,10 +504,13 @@ export class AcpClient {
 		);
 
 		try {
-			const result = await this.connection.prompt({
-				sessionId,
-				prompt: [{ type: "text", text: prompt }],
-			});
+			const result = await this.withPromptTimeout(
+				this.connection.prompt({
+					sessionId,
+					prompt: [{ type: "text", text: prompt }],
+				}),
+				sessionId
+			);
 			this.output.appendLine(
 				`[ACP][${this.descriptor.id}] turn finished (stopReason=${result.stopReason})`
 			);
@@ -734,6 +746,73 @@ export class AcpClient {
 				// Ignore — waiters are just reject callbacks.
 			}
 		}
+	}
+
+	/**
+	 * Wraps a `prompt` RPC call with a configurable timeout. When the
+	 * timeout fires we best-effort cancel the in-flight turn on the
+	 * agent side and reject the promise so the chat runner's catch
+	 * block handles cleanup (error message + `transitionLifecycle
+	 * ("failed")`). We deliberately do NOT emit a `turn-finished`
+	 * event here — doing so would race with the catch block and could
+	 * transition the session out of the terminal `failed` state back
+	 * to `waiting-for-input`.
+	 *
+	 * The timeout is disabled when `promptTimeoutMs` is 0 or non-finite.
+	 */
+	private withPromptTimeout<T>(
+		promise: Promise<T>,
+		sessionId: string
+	): Promise<T> {
+		const timeoutMs = this.promptTimeoutMs;
+		if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+			return promise;
+		}
+		let timer: ReturnType<typeof setTimeout> | undefined;
+		return Promise.race([
+			promise.then(
+				(value) => {
+					if (timer) {
+						clearTimeout(timer);
+					}
+					return value;
+				},
+				(error: unknown) => {
+					if (timer) {
+						clearTimeout(timer);
+					}
+					throw error;
+				}
+			),
+			new Promise<T>((_resolve, reject) => {
+				timer = setTimeout(() => {
+					this.output.appendLine(
+						`[ACP][${this.descriptor.id}] prompt timed out after ${timeoutMs}ms — cancelling session ${sessionId}`
+					);
+					// Best-effort cancel so the agent stops working on the
+					// stale turn. We do not await this — the rejection
+					// below is what unblocks the caller.
+					this.connection?.cancel({ sessionId }).catch((err: unknown) => {
+						this.output.appendLine(
+							`[ACP][${this.descriptor.id}] cancel after timeout failed: ${toMessage(err)}`
+						);
+					});
+					// Do NOT emit a `turn-finished` event here. The
+					// rejection below unblocks `dispatchToAcp`'s catch
+					// block, which handles cleanup (error message +
+					// `transitionLifecycle("failed")`). Emitting
+					// `turn-finished` concurrently would race with that
+					// path and could transition the session out of the
+					// terminal `failed` state back to
+					// `waiting-for-input`.
+					reject(
+						new Error(
+							`[ACP][${this.descriptor.id}] prompt timed out after ${timeoutMs}ms`
+						)
+					);
+				}, timeoutMs);
+			}),
+		]);
 	}
 
 	private async createSession(sessionKey: string): Promise<string> {

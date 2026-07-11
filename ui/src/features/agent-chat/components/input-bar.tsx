@@ -78,6 +78,8 @@ interface InputBarProps {
 	readonly providerId?: string;
 	/** Display name shown as the provider chip's tooltip + a11y label. */
 	readonly providerDisplayName?: string;
+	/** Optional icon URL from the remote registry, rendered instead of a codicon. */
+	readonly providerIconUrl?: string;
 	/**
 	 * Thinking levels reported by the agent for this session. Empty /
 	 * undefined hides the chip.
@@ -109,6 +111,7 @@ export function InputBar({
 	modelsLoading,
 	providerId,
 	providerDisplayName,
+	providerIconUrl,
 	availableThinkingLevels,
 	selectedThinkingLevelId,
 	onChangeThinkingLevel,
@@ -178,6 +181,7 @@ export function InputBar({
 						{providerId ? (
 							<ProviderIconChip
 								displayName={providerDisplayName ?? providerId}
+								iconUrl={providerIconUrl}
 								providerId={providerId}
 							/>
 						) : null}
@@ -389,6 +393,7 @@ function ModelChip({
 interface ProviderIconChipProps {
 	readonly providerId: string;
 	readonly displayName: string;
+	readonly iconUrl?: string;
 }
 
 /**
@@ -405,6 +410,7 @@ interface ProviderIconChipProps {
 function ProviderIconChip({
 	providerId,
 	displayName,
+	iconUrl,
 }: ProviderIconChipProps): JSX.Element {
 	return (
 		<span className="agent-chat-chip" title={displayName}>
@@ -414,10 +420,21 @@ function ProviderIconChip({
 				disabled
 				type="button"
 			>
-				<i
-					aria-hidden="true"
-					className={`codicon ${providerIconClass(providerId)}`}
-				/>
+				{iconUrl ? (
+					<img
+						alt=""
+						aria-hidden="true"
+						className="agent-chat-chip__icon-img"
+						height={14}
+						src={iconUrl}
+						width={14}
+					/>
+				) : (
+					<i
+						aria-hidden="true"
+						className={`codicon ${providerIconClass(providerId)}`}
+					/>
+				)}
 			</button>
 		</span>
 	);

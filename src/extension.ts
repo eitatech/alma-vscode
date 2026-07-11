@@ -2325,6 +2325,14 @@ function mergeRemoteEntries(
 	outputChannel.appendLine(
 		`[ACP] Remote registry merged: now ${registry.list().length} provider(s)`
 	);
+	// Fire the update event AFTER the merge so the chat view provider
+	// rebroadcasts the catalog with the newly-registered descriptors.
+	// `loadRemoteRegistry` already fired `onDidUpdate` before this
+	// function ran, but at that point the remote entries were only in
+	// `registry.remoteEntries` — not yet registered as runnable
+	// descriptors. Without this second fire, the picker never shows
+	// remote agents.
+	registry.notifyProvidersChanged();
 }
 
 function registerAcpCommands(context: ExtensionContext): void {

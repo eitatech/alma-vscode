@@ -1061,4 +1061,100 @@ describe("AcpClient", () => {
 			);
 		});
 	});
+
+	describe("prompt timeout (withPromptTimeout)", () => {
+		it("rejects sendPrompt when the prompt never resolves within promptTimeoutMs", async () => {
+			promptMock.mockImplementationOnce(() => NEVER_RESOLVES());
+			const client = new AcpClient({
+				descriptor,
+				cwd: "/tmp/workspace",
+				output: makeOutputChannel(),
+				promptTimeoutMs: 30,
+			});
+
+			await expect(client.sendPrompt("_ws_", "hello")).rejects.toThrow(
+				TIMED_OUT_REGEX
+			);
+		});
+
+		it("best-effort cancels the session on timeout", async () => {
+			promptMock.mockImplementationOnce(() => NEVER_RESOLVES());
+			cancelMock.mockResolvedValue(undefined);
+			const client = new AcpClient({
+				descriptor,
+				cwd: "/tmp/workspace",
+				output: makeOutputChannel(),
+				promptTimeoutMs: 30,
+			});
+
+			await expect(client.sendPrompt("_ws_", "hello")).rejects.toThrow(
+				TIMED_OUT_REGEX
+			);
+			// Give the best-effort cancel microtask a chance to run.
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			expect(cancelMock).toHaveBeenCalledWith(
+				expect.objectContaining({ sessionId: "session-1" })
+			);
+		});
+
+		it("does NOT emit a turn-finished event on timeout (avoids race with catch block)", async () => {
+			promptMock.mockImplementationOnce(() => NEVER_RESOLVES());
+			const client = new AcpClient({
+				descriptor,
+				cwd: "/tmp/workspace",
+				output: makeOutputChannel(),
+				promptTimeoutMs: 30,
+			});
+			await client.ensureStarted();
+			const listener = vi.fn();
+			client.subscribeSession("session-1", listener);
+
+			await expect(client.sendPrompt("_ws_", "hello")).rejects.toThrow(
+				TIMED_OUT_REGEX
+			);
+			// Flush any pending microtasks.
+			await new Promise((resolve) => setTimeout(resolve, 10));
+
+			const turnFinishedCalls = listener.mock.calls.filter(
+				(args) => (args[0] as { kind: string }).kind === "turn-finished"
+			);
+			expect(turnFinishedCalls).toHaveLength(0);
+		});
+
+		it("resolves normally when the prompt completes before the timeout", async () => {
+			promptMock.mockResolvedValueOnce({ stopReason: "end_turn" });
+			const client = new AcpClient({
+				descriptor,
+				cwd: "/tmp/workspace",
+				output: makeOutputChannel(),
+				promptTimeoutMs: 10_000,
+			});
+
+			await expect(client.sendPrompt("_ws_", "hello")).resolves.toBeUndefined();
+		});
+
+		it("disables the timeout when promptTimeoutMs is 0", async () => {
+			// Use a promise we control so the test doesn't hang.
+			let resolvePrompt: (value: unknown) => void;
+			promptMock.mockImplementationOnce(
+				() =>
+					new Promise((resolve) => {
+						resolvePrompt = resolve;
+					})
+			);
+			const client = new AcpClient({
+				descriptor,
+				cwd: "/tmp/workspace",
+				output: makeOutputChannel(),
+				promptTimeoutMs: 0,
+			});
+
+			const pending = client.sendPrompt("_ws_", "hello");
+			// Wait beyond what a 0ms timeout would have been; the call
+			// should still be pending because the timeout is disabled.
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			resolvePrompt!({ stopReason: "end_turn" });
+			await expect(pending).resolves.toBeUndefined();
+		});
+	});
 });

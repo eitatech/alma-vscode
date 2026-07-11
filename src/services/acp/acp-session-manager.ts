@@ -60,6 +60,11 @@ export interface AcpSessionManagerOptions {
 	 * file changes before they hit disk (Phase 4 redesign).
 	 */
 	bufferFileWrites?: boolean;
+	/**
+	 * Forwarded to every spawned {@link AcpClient}. Maximum time (ms)
+	 * to wait for a single prompt turn before timing out.
+	 */
+	promptTimeoutMs?: number;
 }
 
 /**
@@ -80,6 +85,7 @@ export class AcpSessionManager {
 	private readonly promptForPermission: PermissionPrompter | undefined;
 	private readonly beforeSpawn: BeforeSpawnHook | undefined;
 	private readonly bufferFileWrites: boolean;
+	private readonly promptTimeoutMs: number | undefined;
 	/**
 	 * Cached clients keyed by `${providerId}::${cwd}` (F1 remediation) so two
 	 * concurrent worktree sessions for the same provider never share a
@@ -100,6 +106,7 @@ export class AcpSessionManager {
 		this.promptForPermission = options.promptForPermission;
 		this.beforeSpawn = options.beforeSpawn;
 		this.bufferFileWrites = options.bufferFileWrites ?? false;
+		this.promptTimeoutMs = options.promptTimeoutMs;
 	}
 
 	/**
@@ -378,6 +385,7 @@ export class AcpSessionManager {
 			permissionDefault: this.permissionDefault,
 			promptForPermission: this.promptForPermission,
 			bufferFileWrites: this.bufferFileWrites,
+			promptTimeoutMs: this.promptTimeoutMs,
 		});
 		this.clients.set(key, client);
 		return client;

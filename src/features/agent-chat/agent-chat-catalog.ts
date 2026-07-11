@@ -55,6 +55,8 @@ export interface AgentChatProviderOption {
 	readonly npxPackage?: string;
 	/** External URL to install the provider when `availability === "install-required"`. */
 	readonly installUrl?: string;
+	/** Optional icon URL from the remote registry, used when available. */
+	readonly iconUrl?: string;
 	/** Version currently installed on the host, when detected. */
 	readonly version?: string | null;
 	/** Version available in the registry / catalog. */
@@ -156,6 +158,7 @@ function projectProviders(
 			source,
 			npxPackage,
 			installUrl: descriptor.installUrl || undefined,
+			iconUrl: descriptor.iconUrl,
 			version: probed?.version ?? null,
 			latestVersion: descriptor.latestVersion ?? probed?.latestVersion ?? null,
 			installCommand: descriptor.installCommand,

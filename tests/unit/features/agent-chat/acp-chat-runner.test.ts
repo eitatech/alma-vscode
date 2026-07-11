@@ -607,6 +607,29 @@ describe("AcpChatRunner (T019)", () => {
 			const current = await store.getSession(session.id);
 			expect(current?.lifecycleState).toBe("cancelled");
 		});
+
+		it("does not transition out of a terminal state when a late turn-finished arrives", async () => {
+			const session = await seedSession();
+			const runner = makeRunner(session);
+			// Drive the session to failed via a sendPrompt rejection.
+			manager.failNext(new Error("boom"));
+			await runner.start("hello");
+
+			const afterFail = await store.getSession(session.id);
+			expect(afterFail?.lifecycleState).toBe("failed");
+
+			// A late turn-finished event must NOT move the session back
+			// to waiting-for-input.
+			manager.emit("acp-session-1", {
+				kind: "turn-finished",
+				stopReason: "end_turn",
+				at: 100,
+			});
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			const afterLateEvent = await store.getSession(session.id);
+			expect(afterLateEvent?.lifecycleState).toBe("failed");
+		});
 	});
 
 	describe("subscribe wiring", () => {
