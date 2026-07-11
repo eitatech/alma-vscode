@@ -14,6 +14,7 @@
  */
 
 import { ToolCallCard } from "@/features/agent-chat/components/tool-call-card";
+import { ChatMarkdown } from "@/features/agent-chat/components/chat-markdown";
 import type { ChatMessage } from "@/features/agent-chat/types";
 
 interface ChatMessageItemProps {
@@ -44,7 +45,9 @@ export function ChatMessageItem({
 						className="agent-chat-message__avatar"
 						data-testid="agent-avatar"
 					/>
-					<div className="agent-chat-message__content">{message.content}</div>
+					<div className="agent-chat-message__content">
+						<ChatMarkdown content={message.content} />
+					</div>
 				</div>
 			);
 		case "thought":
@@ -142,6 +145,7 @@ export function ChatMessageItem({
 					>
 						<ToolCallCard
 							affectedFiles={files}
+							detail={message.detail}
 							status={message.status}
 							title={message.title}
 							toolCallId={message.toolCallId}
@@ -168,6 +172,7 @@ export function ChatMessageItem({
 					>
 						{message.status}
 					</div>
+					{message.detail ? <ToolDetail detail={message.detail} /> : null}
 				</div>
 			);
 		}
@@ -183,6 +188,15 @@ export function ChatMessageItem({
 		default:
 			return <div />;
 	}
+}
+
+function ToolDetail({ detail }: { readonly detail: string }): JSX.Element {
+	return (
+		<details className="agent-chat-message__tool-detail">
+			<summary>Details</summary>
+			<pre>{detail}</pre>
+		</details>
+	);
 }
 
 interface DeliveryBadgeProps {

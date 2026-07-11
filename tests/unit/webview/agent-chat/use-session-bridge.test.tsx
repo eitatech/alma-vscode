@@ -148,6 +148,7 @@ describe("useSessionBridge (T024)", () => {
 			expect(result.current.state.session?.id).toBe("s-1");
 			expect(result.current.state.messages).toHaveLength(1);
 			expect(result.current.state.availableModes).toHaveLength(1);
+			expect(result.current.state.availableCommands).toEqual([]);
 		});
 
 		it("ignores session/loaded messages for a different session id", () => {
@@ -168,6 +169,59 @@ describe("useSessionBridge (T024)", () => {
 			});
 
 			expect(result.current.state.ready).toBe(false);
+		});
+	});
+
+	describe("ACP session metadata", () => {
+		it("hydrates and incrementally replaces commands, config, and usage", () => {
+			const { result } = renderHook(() => useSessionBridge("s-1"));
+			act(() => {
+				postFromExtension({
+					type: "agent-chat/session/loaded",
+					payload: {
+						session: sessionView({
+							availableCommands: [{ name: "review", description: "Review" }],
+							acpUsage: { used: 10, size: 100 },
+						}),
+						messages: [],
+						availableModes: [],
+						availableModels: [],
+						availableTargets: [],
+						hasArchivedTranscript: false,
+					},
+				});
+			});
+
+			expect(result.current.state.availableCommands).toHaveLength(1);
+			expect(result.current.state.acpUsage?.used).toBe(10);
+
+			act(() => {
+				postFromExtension({
+					type: "agent-chat/session/metadata-changed",
+					payload: {
+						sessionId: "s-1",
+						availableCommands: [{ name: "compact", description: "Compact" }],
+						configOptions: [],
+						acpUsage: { used: 50, size: 100 },
+						selectedModeId: "plan",
+					},
+				});
+			});
+
+			expect(result.current.state.availableCommands[0]?.name).toBe("compact");
+			expect(result.current.state.acpUsage?.used).toBe(50);
+			expect(result.current.state.session?.selectedModeId).toBe("plan");
+		});
+	});
+
+	describe("ACP config option controls", () => {
+		it("posts config option changes for the active session", () => {
+			const { result } = renderHook(() => useSessionBridge("s-1"));
+			act(() => result.current.changeConfigOption("mode", "plan"));
+			expect(fakeVscode.postMessage).toHaveBeenCalledWith({
+				type: "agent-chat/control/change-config-option",
+				payload: { sessionId: "s-1", configId: "mode", value: "plan" },
+			});
 		});
 	});
 

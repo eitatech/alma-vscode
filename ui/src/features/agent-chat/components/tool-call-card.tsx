@@ -26,6 +26,7 @@ interface ToolCallCardProps {
 	readonly title?: string;
 	readonly status: ToolCallStatus;
 	readonly affectedFiles: readonly ToolCallAffectedFile[];
+	readonly detail?: string;
 }
 
 export function ToolCallCard({
@@ -33,6 +34,7 @@ export function ToolCallCard({
 	title,
 	status,
 	affectedFiles,
+	detail,
 }: ToolCallCardProps): JSX.Element | null {
 	const [expanded, setExpanded] = useState(false);
 	if (affectedFiles.length === 0) {
@@ -114,6 +116,12 @@ export function ToolCallCard({
 						</li>
 					))}
 				</ul>
+			) : null}
+			{detail ? (
+				<details className="agent-chat-tool-card__detail">
+					<summary>Details</summary>
+					<pre>{detail}</pre>
+				</details>
 			) : null}
 		</div>
 	);

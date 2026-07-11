@@ -99,6 +99,34 @@ export interface AgentRoleDescriptor {
 	description?: string;
 }
 
+export interface AvailableAgentCommand {
+	name: string;
+	description?: string;
+	input?: { hint?: string };
+}
+
+export interface SessionConfigValueDescriptor {
+	value: string;
+	name: string;
+	description?: string;
+	group?: string;
+}
+
+export interface SessionConfigOptionDescriptor {
+	id: string;
+	name: string;
+	description?: string;
+	category?: string;
+	currentValue: string;
+	values: readonly SessionConfigValueDescriptor[];
+}
+
+export interface AcpUsageSnapshot {
+	used?: number;
+	size?: number;
+	cost?: { amount: number; currency: string };
+}
+
 /**
  * Result of the hybrid capability discovery resolver.
  *
@@ -343,6 +371,8 @@ export interface ToolCallChatMessage extends ChatMessageBase {
 	 * that do not touch files (e.g. `kind: "execute"`).
 	 */
 	affectedFiles?: readonly ToolCallAffectedFile[];
+	/** Latest human-readable progress or result content reported by ACP. */
+	detail?: string;
 }
 
 /**
@@ -420,6 +450,11 @@ export interface AgentChatSession {
 	availableThinkingLevels?: ThinkingLevelDescriptor[];
 	/** Same as above, for the agent-role picker. */
 	availableAgentRoles?: AgentRoleDescriptor[];
+	availableCommands?: AvailableAgentCommand[];
+	configOptions?: SessionConfigOptionDescriptor[];
+	acpUsage?: AcpUsageSnapshot;
+	acpSessionTitle?: string;
+	acpUpdatedAt?: string;
 	executionTarget: ExecutionTarget;
 	lifecycleState: SessionLifecycleState;
 	trigger: SessionTrigger;
@@ -538,6 +573,7 @@ export interface AgentChatRunnerHandle {
 	cancel(): Promise<void>;
 	/** Release subprocess / subscription resources. Idempotent. */
 	dispose(): void;
+	changeConfigOption?(configId: string, value: string): Promise<void>;
 	/**
 	 * Submit a follow-up message. Absent on read-only cloud sessions.
 	 * Rejects with `{ message: /queued|already/i }` when a queued follow-up

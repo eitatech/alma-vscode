@@ -53,6 +53,7 @@ export function AgentChatFeature(): JSX.Element {
 		changeModel,
 		changeThinkingLevel,
 		changeAgentRole,
+		changeConfigOption,
 		probeModels,
 		installProvider,
 		updateProvider,
@@ -159,16 +160,20 @@ export function AgentChatFeature(): JSX.Element {
 			<InputBar
 				acceptsFollowUp={session.acceptsFollowUp}
 				availableAgentRoles={session.availableAgentRoles}
+				availableCommands={state.availableCommands}
 				availableModels={session.availableModels ?? state.availableModels}
 				availableThinkingLevels={session.availableThinkingLevels}
 				busy={isBusyState(session.lifecycleState)}
+				configOptions={state.configOptions}
 				currentModelId={session.currentModelId ?? session.selectedModelId}
+				executionTargetLabel={session.executionTarget.label}
 				modelLabel={session.selectedModelId ?? session.agentDisplayName}
 				modelsLoading={Boolean(
 					state.modelsLoading?.[deriveProviderIdForSession(session)]
 				)}
 				onCancel={cancel}
 				onChangeAgentRole={changeAgentRole}
+				onChangeConfigOption={changeConfigOption}
 				onChangeModel={changeModel}
 				onChangePermissionDefault={changePermissionDefault}
 				onChangeThinkingLevel={changeThinkingLevel}
@@ -185,6 +190,7 @@ export function AgentChatFeature(): JSX.Element {
 				selectedAgentRoleId={session.selectedAgentRoleId}
 				selectedThinkingLevelId={session.selectedThinkingLevelId}
 				terminal={isTerminalState(session.lifecycleState)}
+				usage={state.acpUsage}
 			/>
 			<button
 				aria-label="Cancel session"

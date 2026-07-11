@@ -3075,7 +3075,7 @@ async function bootstrapAgentChat(
 					agentDisplayName: params.agentDisplayName,
 					capabilities: { source: "none" },
 					selectedModeId: params.mode,
-					selectedModelId: params.mode,
+					selectedModelId: params.modelId,
 					selectedThinkingLevelId: params.thinkingLevelId,
 					selectedAgentRoleId: params.agentRoleId,
 					executionTarget: { kind: "local" },
@@ -3094,12 +3094,14 @@ async function bootstrapAgentChat(
 					store,
 					registry,
 					manager: {
-						sendPrompt: (providerId, runnerCwd, sessionId, prompt) =>
+						// biome-ignore lint/nursery/useMaxParams: ACP session routing requires provider, cwd, session, prompt, and optional model options
+						sendPrompt: (providerId, runnerCwd, sessionId, prompt, options) =>
 							sessionManager.sendPromptDirect(
 								providerId,
 								runnerCwd ?? cwd,
 								sessionId,
-								prompt
+								prompt,
+								options
 							),
 						cancel: (providerId, runnerCwd, sessionId) =>
 							sessionManager.cancelDirect(
@@ -3128,6 +3130,21 @@ async function bootstrapAgentChat(
 								action
 							);
 						},
+						// biome-ignore lint/nursery/useMaxParams: ACP routing requires provider, cwd, session, config id, and selected value
+						setSessionConfigOption: (
+							providerId,
+							runnerCwd,
+							sessionId,
+							configId,
+							value
+						) =>
+							sessionManager.setSessionConfigOption(
+								providerId,
+								runnerCwd ?? cwd,
+								sessionId,
+								configId,
+								value
+							),
 					},
 					acpSessionId,
 				});

@@ -696,7 +696,7 @@ export class AgentChatViewProvider
 				agentId: provider.id,
 				agentDisplayName: provider.displayName,
 				agentCommand: "",
-				mode: payload.modelId,
+				modelId: payload.modelId,
 				thinkingLevelId: payload.thinkingLevelId,
 				agentRoleId: payload.agentRoleId,
 				taskInstruction: composePromptWithAgentFile(
@@ -1001,6 +1001,7 @@ class SidebarSessionBinding {
 	private lastLifecycleState: SessionLifecycleState;
 	private lastAvailableModelIds: string[] = [];
 	private lastCurrentModelId: string | undefined;
+	private lastMetadataSignature: string;
 	private disposed = false;
 
 	constructor(options: SidebarSessionBindingOptions) {
@@ -1017,6 +1018,7 @@ class SidebarSessionBinding {
 		);
 		this.lastCurrentModelId =
 			options.session.currentModelId ?? options.session.selectedModelId;
+		this.lastMetadataSignature = sessionMetadataSignature(options.session);
 
 		this.subscriptions.push(
 			this.store.onDidChangeManifest(() => {
@@ -1151,6 +1153,10 @@ class SidebarSessionBinding {
 					selectedAgentRoleId: current.selectedAgentRoleId,
 					availableThinkingLevels,
 					availableAgentRoles,
+					availableCommands: current.availableCommands ?? [],
+					configOptions: current.configOptions ?? [],
+					acpUsage: current.acpUsage,
+					acpSessionTitle: current.acpSessionTitle,
 					executionTarget: {
 						kind: current.executionTarget.kind,
 						label: executionTargetLabel(current.executionTarget.kind),
@@ -1238,6 +1244,17 @@ class SidebarSessionBinding {
 					"agentRoleId"
 				);
 				return;
+			case "agent-chat/control/change-config-option": {
+				const payload = message.payload as {
+					configId?: string;
+					value?: string;
+				};
+				const runner = this.registry.getRunner(this.sessionId);
+				if (payload.configId && payload.value && runner?.changeConfigOption) {
+					await runner.changeConfigOption(payload.configId, payload.value);
+				}
+				return;
+			}
 			case "agent-chat/control/change-target":
 				await this.routeChangeTarget(
 					message.payload as {
@@ -1459,7 +1476,29 @@ class SidebarSessionBinding {
 			});
 		}
 		await this.maybePushModelsChanged(current);
+		await this.maybePushMetadataChanged(current);
 		await this.flushTranscriptDeltas();
+	}
+
+	private async maybePushMetadataChanged(
+		current: AgentChatSession
+	): Promise<void> {
+		const signature = sessionMetadataSignature(current);
+		if (signature === this.lastMetadataSignature) {
+			return;
+		}
+		this.lastMetadataSignature = signature;
+		await this.postMessage({
+			type: "agent-chat/session/metadata-changed",
+			payload: {
+				sessionId: this.sessionId,
+				selectedModeId: current.selectedModeId,
+				availableCommands: current.availableCommands ?? [],
+				configOptions: current.configOptions ?? [],
+				acpUsage: current.acpUsage,
+				acpSessionTitle: current.acpSessionTitle,
+			},
+		});
 	}
 
 	/**
@@ -1602,7 +1641,7 @@ function messageSignature(msg: ChatMessage): string {
 		case "user":
 			return `user|${msg.content}|${msg.deliveryStatus}|${msg.rejectionReason ?? ""}`;
 		case "tool":
-			return `tool|${msg.title ?? ""}|${msg.status}|${msg.toolKind ?? ""}|${JSON.stringify(msg.affectedFiles ?? [])}`;
+			return `tool|${msg.title ?? ""}|${msg.status}|${msg.toolKind ?? ""}|${msg.detail ?? ""}|${JSON.stringify(msg.affectedFiles ?? [])}`;
 		case "plan":
 			return `plan|${msg.turnId}|${JSON.stringify(msg.entries)}`;
 		case "error":
@@ -1612,6 +1651,16 @@ function messageSignature(msg: ChatMessage): string {
 		default:
 			return "unknown";
 	}
+}
+
+function sessionMetadataSignature(session: AgentChatSession): string {
+	return JSON.stringify({
+		selectedModeId: session.selectedModeId,
+		availableCommands: session.availableCommands ?? [],
+		configOptions: session.configOptions ?? [],
+		acpUsage: session.acpUsage,
+		acpSessionTitle: session.acpSessionTitle,
+	});
 }
 
 function executionTargetLabel(kind: "local" | "worktree" | "cloud"): string {

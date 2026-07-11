@@ -65,6 +65,30 @@ describe("ChatMessageItem", () => {
 		expect(screen.getByText("agent reply")).toBeInTheDocument();
 	});
 
+	it("renders agent text as safe Markdown", () => {
+		const { container } = render(
+			<ChatMessageItem
+				message={{
+					id: "a-markdown",
+					sessionId: "s-1",
+					timestamp: 1000,
+					sequence: 1,
+					role: "agent",
+					content:
+						"**Done**\n\n- first\n- second\n\n`npm test`\n\n<script>window.__unsafe = true</script>",
+					turnId: "t-1",
+					isTurnComplete: true,
+				}}
+			/>
+		);
+
+		expect(screen.getByText("Done").tagName).toBe("STRONG");
+		expect(container.querySelectorAll("li")).toHaveLength(2);
+		expect(screen.getByText("npm test").tagName).toBe("CODE");
+		expect(container.querySelector("script")).toBeNull();
+		expect(container.textContent).toContain("<script>");
+	});
+
 	it("renders system-message content", () => {
 		render(
 			<ChatMessageItem
@@ -252,5 +276,26 @@ describe("ChatMessageItem", () => {
 		const dot = container.querySelector(".agent-chat-message__tool-dot");
 		expect(dot).not.toBeNull();
 		expect(dot?.className).toContain("agent-chat-message__tool-dot--succeeded");
+	});
+
+	it("renders tool progress detail in a collapsible region", () => {
+		render(
+			<ChatMessageItem
+				message={{
+					id: "t-detail",
+					sessionId: "s-1",
+					timestamp: 1000,
+					sequence: 4,
+					role: "tool",
+					toolCallId: "tc-detail",
+					title: "Run tests",
+					detail: "12 tests passed",
+					status: "succeeded",
+				}}
+			/>
+		);
+
+		expect(screen.getByText("12 tests passed")).toBeInTheDocument();
+		expect(screen.getByText("Details").closest("details")).not.toBeNull();
 	});
 });

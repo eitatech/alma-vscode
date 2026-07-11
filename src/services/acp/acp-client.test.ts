@@ -4,7 +4,7 @@ import { EventEmitter } from "node:events";
 import { PassThrough, type Readable, type Writable } from "node:stream";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OutputChannel } from "vscode";
-import { AcpClient } from "./acp-client";
+import { AcpClient, toMessage } from "./acp-client";
 import type { AcpProviderDescriptor } from "./types";
 
 const AUTH_REQUIRED_REGEX = /auth_required/;
@@ -31,14 +31,21 @@ vi.mock("../../utils/cli-detector", () => ({
 	locateCLIExecutable: vi.fn(),
 }));
 
-const { initializeMock, newSessionMock, promptMock, cancelMock, handlerRef } =
-	vi.hoisted(() => ({
-		initializeMock: vi.fn(),
-		newSessionMock: vi.fn(),
-		promptMock: vi.fn(),
-		cancelMock: vi.fn(),
-		handlerRef: { current: null as unknown },
-	}));
+const {
+	initializeMock,
+	newSessionMock,
+	promptMock,
+	cancelMock,
+	setSessionConfigOptionMock,
+	handlerRef,
+} = vi.hoisted(() => ({
+	initializeMock: vi.fn(),
+	newSessionMock: vi.fn(),
+	promptMock: vi.fn(),
+	cancelMock: vi.fn(),
+	setSessionConfigOptionMock: vi.fn(),
+	handlerRef: { current: null as unknown },
+}));
 
 vi.mock("@agentclientprotocol/sdk", () => {
 	class FakeClientSideConnection {
@@ -46,6 +53,7 @@ vi.mock("@agentclientprotocol/sdk", () => {
 		newSession = newSessionMock;
 		prompt = promptMock;
 		cancel = cancelMock;
+		setSessionConfigOption = setSessionConfigOptionMock;
 		constructor(factory: () => unknown) {
 			handlerRef.current = factory();
 		}
@@ -670,6 +678,47 @@ describe("AcpClient", () => {
 			expect(typeof event.at).toBe("number");
 		});
 
+		it("delivers initial config and mode state to a host session-key subscriber", async () => {
+			newSessionMock.mockResolvedValueOnce({
+				sessionId: "agent-session-42",
+				modes: {
+					currentModeId: "plan",
+					availableModes: [{ id: "plan", name: "Plan" }],
+				},
+				configOptions: [
+					{
+						type: "select",
+						id: "effort",
+						name: "Effort",
+						currentValue: "high",
+						options: [{ value: "high", name: "High" }],
+					},
+				],
+			});
+			const client = new AcpClient({
+				descriptor,
+				cwd: "/tmp/workspace",
+				output: makeOutputChannel(),
+			});
+			const listener = vi.fn();
+			client.subscribeSession("host-session-key", listener);
+
+			await client.sendPrompt("host-session-key", "hello");
+
+			expect(listener.mock.calls.map((call) => call[0])).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({
+						kind: "config-options-update",
+						options: [expect.objectContaining({ id: "effort" })],
+					}),
+					expect.objectContaining({
+						kind: "current-mode-update",
+						modeId: "plan",
+					}),
+				])
+			);
+		});
+
 		it("fans out tool_call and tool_call_update events with structured payloads", async () => {
 			const client = new AcpClient({
 				descriptor,
@@ -704,6 +753,42 @@ describe("AcpClient", () => {
 			);
 			expect(first.kind).toBe("tool-call");
 			expect(second.kind).toBe("tool-call-update");
+		});
+
+		it("preserves tool-call titles and textual progress content", async () => {
+			const client = new AcpClient({
+				descriptor,
+				cwd: "/tmp/workspace",
+				output: makeOutputChannel(),
+			});
+			await client.ensureStarted();
+			const listener = vi.fn();
+			client.subscribeSession("session-1", listener);
+
+			await invokeSessionUpdate({
+				sessionId: "session-1",
+				update: {
+					sessionUpdate: "tool_call_update",
+					toolCallId: "tc-1",
+					title: "Running npm test",
+					status: "in_progress",
+					content: [
+						{
+							type: "content",
+							content: { type: "text", text: "12 tests passed" },
+						},
+					],
+				},
+			});
+
+			expect(listener).toHaveBeenCalledWith(
+				expect.objectContaining({
+					kind: "tool-call-update",
+					title: "Running npm test",
+					detail: "12 tests passed",
+					status: "running",
+				})
+			);
 		});
 
 		it("fans out agent_thought_chunk events as `agent-thought-chunk` with the text payload", async () => {
@@ -781,6 +866,115 @@ describe("AcpClient", () => {
 				status: "in_progress",
 				priority: "high",
 			});
+		});
+
+		it("accepts incremental plan_update and plan_removed notifications", async () => {
+			const client = new AcpClient({
+				descriptor,
+				cwd: "/tmp/workspace",
+				output: makeOutputChannel(),
+			});
+			await client.ensureStarted();
+			const listener = vi.fn();
+			client.subscribeSession("session-1", listener);
+
+			await invokeSessionUpdate({
+				sessionId: "session-1",
+				update: {
+					sessionUpdate: "plan_update",
+					entries: [{ content: "Run checks", status: "in_progress" }],
+				},
+			});
+			await invokeSessionUpdate({
+				sessionId: "session-1",
+				update: { sessionUpdate: "plan_removed" },
+			});
+
+			expect(listener.mock.calls.map((call) => call[0])).toMatchObject([
+				{ kind: "plan-update", entries: [{ content: "Run checks" }] },
+				{ kind: "plan-update", entries: [] },
+			]);
+		});
+
+		it("normalises available commands, config options and usage updates", async () => {
+			const client = new AcpClient({
+				descriptor,
+				cwd: "/tmp/workspace",
+				output: makeOutputChannel(),
+			});
+			await client.ensureStarted();
+			const listener = vi.fn();
+			client.subscribeSession("session-1", listener);
+
+			await invokeSessionUpdate({
+				sessionId: "session-1",
+				update: {
+					sessionUpdate: "available_commands_update",
+					availableCommands: [
+						{
+							name: "review",
+							description: "Review changes",
+							input: { hint: "scope" },
+						},
+					],
+				},
+			});
+			await invokeSessionUpdate({
+				sessionId: "session-1",
+				update: {
+					sessionUpdate: "config_option_update",
+					configOptions: [
+						{
+							type: "select",
+							id: "mode",
+							name: "Mode",
+							category: "mode",
+							currentValue: "agent",
+							options: [
+								{ value: "agent", name: "Agent" },
+								{ value: "plan", name: "Plan" },
+							],
+						},
+					],
+				},
+			});
+			await invokeSessionUpdate({
+				sessionId: "session-1",
+				update: {
+					sessionUpdate: "usage_update",
+					used: 32_000,
+					size: 128_000,
+					cost: { amount: 0.42, currency: "USD" },
+				},
+			});
+
+			expect(listener.mock.calls.map((call) => call[0])).toMatchObject([
+				{
+					kind: "available-commands-update",
+					commands: [{ name: "review", description: "Review changes" }],
+				},
+				{
+					kind: "config-options-update",
+					options: [
+						{
+							id: "mode",
+							currentValue: "agent",
+							values: [
+								{ value: "agent", name: "Agent" },
+								{ value: "plan", name: "Plan" },
+							],
+						},
+					],
+				},
+				{
+					kind: "usage-update",
+					usage: {
+						used: 32_000,
+						size: 128_000,
+						cost: { amount: 0.42, currency: "USD" },
+					},
+				},
+			]);
 		});
 
 		it("projects ACP `Diff` content into affectedFiles with computed +N/-M stats", async () => {
@@ -992,6 +1186,48 @@ describe("AcpClient", () => {
 		});
 	});
 
+	describe("session config options", () => {
+		it("sets an ACP config option and emits the authoritative response", async () => {
+			const client = new AcpClient({
+				descriptor,
+				cwd: "/tmp/workspace",
+				output: makeOutputChannel(),
+			});
+			await client.ensureStarted();
+			await client.sendPrompt("session-1", "hello");
+			const listener = vi.fn();
+			client.subscribeSession("session-1", listener);
+
+			setSessionConfigOptionMock.mockResolvedValueOnce({
+				configOptions: [
+					{
+						type: "select",
+						id: "mode",
+						name: "Mode",
+						currentValue: "plan",
+						options: [{ value: "plan", name: "Plan" }],
+					},
+				],
+			});
+
+			await client.setSessionConfigOption("session-1", "mode", "plan");
+
+			expect(setSessionConfigOptionMock).toHaveBeenCalledWith({
+				sessionId: expect.any(String),
+				configId: "mode",
+				value: "plan",
+			});
+			expect(listener).toHaveBeenLastCalledWith(
+				expect.objectContaining({
+					kind: "config-options-update",
+					options: [
+						expect.objectContaining({ id: "mode", currentValue: "plan" }),
+					],
+				})
+			);
+		});
+	});
+
 	describe("filesystem handlers", () => {
 		it("readTextFile returns full file content via fs/promises", async () => {
 			readFileMock.mockResolvedValueOnce("line1\nline2\nline3\n");
@@ -1156,5 +1392,49 @@ describe("AcpClient", () => {
 			resolvePrompt!({ stopReason: "end_turn" });
 			await expect(pending).resolves.toBeUndefined();
 		});
+	});
+});
+
+describe("toMessage", () => {
+	it("extracts .message from Error instances", () => {
+		expect(toMessage(new Error("boom"))).toBe("boom");
+	});
+
+	it("extracts .message from plain JSON-RPC error objects (the shape the ACP SDK rejects with)", () => {
+		const rpcError = { code: -32_601, message: "Method not found", data: null };
+		expect(toMessage(rpcError)).toContain("Method not found");
+	});
+
+	it("includes the code when present on a JSON-RPC error object", () => {
+		const rpcError = { code: -32_601, message: "Method not found" };
+		expect(toMessage(rpcError)).toContain("code=-32601");
+	});
+
+	it("includes JSON-serialised data when present", () => {
+		const rpcError = {
+			code: -32_603,
+			message: "Internal error",
+			data: { detail: "model metadata not found" },
+		};
+		const result = toMessage(rpcError);
+		expect(result).toContain("Internal error");
+		expect(result).toContain("model metadata not found");
+	});
+
+	it("does not produce [object Object] for a plain JSON-RPC error object", () => {
+		const rpcError = { code: -1, message: "something failed" };
+		expect(toMessage(rpcError)).not.toBe("[object Object]");
+	});
+
+	it("falls back to String() for non-object, non-Error values", () => {
+		expect(toMessage("plain string")).toBe("plain string");
+		expect(toMessage(42)).toBe("42");
+		expect(toMessage(null)).toBe("null");
+		expect(toMessage(undefined)).toBe("undefined");
+	});
+
+	it("falls back to String() for objects without a .message string property", () => {
+		expect(toMessage({ foo: "bar" })).toBe("[object Object]");
+		expect(toMessage({ message: 123 })).toBe("[object Object]");
 	});
 });

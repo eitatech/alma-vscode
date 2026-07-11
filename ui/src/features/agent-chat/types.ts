@@ -72,6 +72,34 @@ export interface AgentRoleDescriptor {
 	description?: string;
 }
 
+export interface AvailableAgentCommand {
+	name: string;
+	description?: string;
+	input?: { hint?: string };
+}
+
+export interface SessionConfigValueDescriptor {
+	value: string;
+	name: string;
+	description?: string;
+	group?: string;
+}
+
+export interface SessionConfigOptionDescriptor {
+	id: string;
+	name: string;
+	description?: string;
+	category?: string;
+	currentValue: string;
+	values: readonly SessionConfigValueDescriptor[];
+}
+
+export interface AcpUsageSnapshot {
+	used?: number;
+	size?: number;
+	cost?: { amount: number; currency: string };
+}
+
 export type ResolvedCapabilities =
 	| {
 			source: "agent";
@@ -245,6 +273,7 @@ export interface ToolCallChatMessage extends ChatMessageBase {
 	 * a plain title row.
 	 */
 	affectedFiles?: readonly ToolCallAffectedFile[];
+	detail?: string;
 }
 
 export type ErrorChatMessageCategory =
@@ -341,6 +370,10 @@ export interface AgentChatSessionView {
 	 * available.
 	 */
 	iconUrl?: string;
+	availableCommands?: AvailableAgentCommand[];
+	configOptions?: SessionConfigOptionDescriptor[];
+	acpUsage?: AcpUsageSnapshot;
+	acpSessionTitle?: string;
 }
 
 // ============================================================================

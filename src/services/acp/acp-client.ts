@@ -121,6 +121,22 @@ export interface AcpUsageSnapshot {
 	cost?: { amount: number; currency: string };
 }
 
+export interface AcpSessionConfigValue {
+	value: string;
+	name: string;
+	description?: string;
+	group?: string;
+}
+
+export interface AcpSessionConfigOption {
+	id: string;
+	name: string;
+	description?: string;
+	category?: string;
+	currentValue: string;
+	values: readonly AcpSessionConfigValue[];
+}
+
 export type AcpSessionEvent =
 	| { kind: "agent-message-chunk"; text: string; at: number }
 	| { kind: "agent-thought-chunk"; text: string; at: number }
@@ -129,6 +145,11 @@ export type AcpSessionEvent =
 	| {
 			kind: "available-commands-update";
 			commands: readonly AcpAvailableCommand[];
+			at: number;
+	  }
+	| {
+			kind: "config-options-update";
+			options: readonly AcpSessionConfigOption[];
 			at: number;
 	  }
 	| { kind: "current-mode-update"; modeId: string; at: number }
@@ -146,14 +167,17 @@ export type AcpSessionEvent =
 			status?: string;
 			toolKind?: string;
 			affectedFiles?: AcpAffectedFile[];
+			detail?: string;
 			at: number;
 	  }
 	| {
 			kind: "tool-call-update";
 			toolCallId: string;
+			title?: string;
 			status?: string;
 			toolKind?: string;
 			affectedFiles?: AcpAffectedFile[];
+			detail?: string;
 			at: number;
 	  }
 	| { kind: "turn-finished"; stopReason: string; at: number }
@@ -484,7 +508,11 @@ export class AcpClient {
 	 * Sends a prompt on the session identified by `sessionKey`, creating the
 	 * session on demand. Resolves when the ACP turn completes.
 	 */
-	async sendPrompt(sessionKey: string, prompt: string): Promise<void> {
+	async sendPrompt(
+		sessionKey: string,
+		prompt: string,
+		options?: { modelId?: string }
+	): Promise<void> {
 		await this.ensureStarted();
 		if (!this.connection) {
 			throw new Error(
@@ -496,6 +524,23 @@ export class AcpClient {
 		const sessionId = existing
 			? existing.sessionId
 			: await this.createSession(sessionKey);
+
+		// Apply the user's selected model before the first prompt so the
+		// agent uses it from the very first turn. This is best-effort:
+		// agents that don't implement `session/set_model` silently fall
+		// back to their default model.
+		if (options?.modelId) {
+			try {
+				await this.setSessionModel(sessionKey, options.modelId);
+			} catch (error) {
+				const message = toMessage(error);
+				if (!message.includes(ACP_NOT_SUPPORTED)) {
+					this.output.appendLine(
+						`[ACP][${this.descriptor.id}] failed to set initial model '${options.modelId}': ${message}`
+					);
+				}
+			}
+		}
 
 		this.lastSessionKey = sessionKey;
 
@@ -844,6 +889,21 @@ export class AcpClient {
 				at: Date.now(),
 			});
 		}
+		const configOptions = normalizeConfigOptions(response.configOptions ?? []);
+		if (configOptions.length > 0) {
+			this.emitSessionEvent(response.sessionId, {
+				kind: "config-options-update",
+				options: configOptions,
+				at: Date.now(),
+			});
+		}
+		if (response.modes?.currentModeId) {
+			this.emitSessionEvent(response.sessionId, {
+				kind: "current-mode-update",
+				modeId: response.modes.currentModeId,
+				at: Date.now(),
+			});
+		}
 		return response.sessionId;
 	}
 
@@ -978,6 +1038,41 @@ export class AcpClient {
 		});
 	}
 
+	/** Applies an agent-defined ACP session configuration option. */
+	async setSessionConfigOption(
+		sessionKey: string,
+		configId: string,
+		value: string
+	): Promise<void> {
+		const entry = this.sessions.get(sessionKey);
+		if (!entry) {
+			throw new Error(
+				`[ACP][${this.descriptor.id}] cannot set config option: session ${sessionKey} not tracked`
+			);
+		}
+		if (!this.connection) {
+			throw new Error(
+				`[ACP][${this.descriptor.id}] connection not ready when setting ${configId}`
+			);
+		}
+		const result = await this.connection.setSessionConfigOption({
+			sessionId: entry.sessionId,
+			configId,
+			value,
+		});
+		const configOptions = normalizeConfigOptions(
+			(result as { configOptions?: readonly unknown[] }).configOptions ?? []
+		);
+		this.output.appendLine(
+			`[ACP][${this.descriptor.id}] session/set_config_option sessionKey=${sessionKey} configId=${configId} value=${value}`
+		);
+		this.emitSessionEvent(entry.sessionId, {
+			kind: "config-options-update",
+			options: configOptions,
+			at: Date.now(),
+		});
+	}
+
 	/**
 	 * Update the in-memory permission strategy without recycling the child
 	 * process. The next `requestPermission` call from the agent honours the
@@ -1074,8 +1169,48 @@ export class AcpClient {
 	}
 }
 
-const toMessage = (error: unknown): string =>
-	error instanceof Error ? error.message : String(error);
+/**
+ * Extract a human-readable message from an error value, handling the
+ * three shapes the ACP SDK can reject with:
+ *
+ *   1. `Error` instances (spawn failures, timeouts, our own throws).
+ *   2. Plain JSON-RPC error objects `{ code, message, data }` — the
+ *      `@agentclientprotocol/sdk` `ClientSideConnection` rejects `prompt`
+ *      / `newSession` / `setSessionModel` promises with the raw
+ *      `response.error` payload, which is NOT an `Error` instance.
+ *      `String({ code, message, data })` produces `"[object Object]"`,
+ *      so we must read `.message` explicitly.
+ *   3. Anything else — fall back to `String(error)`.
+ */
+export const toMessage = (error: unknown): string => {
+	if (error instanceof Error) {
+		return error.message;
+	}
+	if (
+		error !== null &&
+		typeof error === "object" &&
+		typeof (error as { message?: unknown }).message === "string"
+	) {
+		const { message, code, data } = error as {
+			message: string;
+			code?: unknown;
+			data?: unknown;
+		};
+		const parts = [message];
+		if (code !== undefined) {
+			parts.push(`(code=${code})`);
+		}
+		if (data !== undefined && data !== null) {
+			try {
+				parts.push(`data=${JSON.stringify(data)}`);
+			} catch {
+				parts.push(`data=${String(data)}`);
+			}
+		}
+		return parts.join(" ");
+	}
+	return String(error);
+};
 
 /**
  * Buffers a `writeTextFile` request through the pending-writes store
@@ -1226,11 +1361,11 @@ function handleChunkUpdate(ctx: DispatchCtx): boolean {
 	return false;
 }
 
-/** Dispatches `plan` and `available_commands_update`. */
+/** Dispatches plan, commands, and configuration updates. */
 function handlePlanOrCommandsUpdate(ctx: DispatchCtx): boolean {
 	const { update, sessionId, at, output, emit } = ctx;
 	const kind = (update as { sessionUpdate: string }).sessionUpdate;
-	if (kind === "plan") {
+	if (kind === "plan" || kind === "plan_update") {
 		const raw = (update as { entries?: readonly AcpPlanEntry[] }).entries;
 		const entries = (raw ?? []).map((e) => ({
 			content: e.content,
@@ -1241,6 +1376,10 @@ function handlePlanOrCommandsUpdate(ctx: DispatchCtx): boolean {
 			`\n[plan] ${entries.length} entr${entries.length === 1 ? "y" : "ies"}`
 		);
 		emit(sessionId, { kind: "plan-update", entries, at });
+		return true;
+	}
+	if (kind === "plan_removed") {
+		emit(sessionId, { kind: "plan-update", entries: [], at });
 		return true;
 	}
 	if (kind === "available_commands_update") {
@@ -1265,7 +1404,101 @@ function handlePlanOrCommandsUpdate(ctx: DispatchCtx): boolean {
 		});
 		return true;
 	}
+	if (kind === "config_option_update") {
+		const raw = (update as { configOptions?: readonly unknown[] })
+			.configOptions;
+		emit(sessionId, {
+			kind: "config-options-update",
+			options: normalizeConfigOptions(raw ?? []),
+			at,
+		});
+		return true;
+	}
 	return false;
+}
+
+function normalizeConfigOptions(
+	rawOptions: readonly unknown[]
+): AcpSessionConfigOption[] {
+	const normalized: AcpSessionConfigOption[] = [];
+	for (const raw of rawOptions) {
+		if (!(raw && typeof raw === "object")) {
+			continue;
+		}
+		const option = raw as {
+			id?: unknown;
+			name?: unknown;
+			description?: unknown;
+			category?: unknown;
+			currentValue?: unknown;
+			options?: unknown;
+		};
+		if (
+			typeof option.id !== "string" ||
+			typeof option.name !== "string" ||
+			typeof option.currentValue !== "string"
+		) {
+			continue;
+		}
+		normalized.push({
+			id: option.id,
+			name: option.name,
+			description:
+				typeof option.description === "string" ? option.description : undefined,
+			category:
+				typeof option.category === "string" ? option.category : undefined,
+			currentValue: option.currentValue,
+			values: normalizeConfigValues(option.options),
+		});
+	}
+	return normalized;
+}
+
+function normalizeConfigValues(raw: unknown): AcpSessionConfigValue[] {
+	if (!Array.isArray(raw)) {
+		return [];
+	}
+	const values: AcpSessionConfigValue[] = [];
+	for (const entry of raw) {
+		values.push(...normalizeConfigValue(entry));
+	}
+	return values;
+}
+
+function normalizeConfigValue(raw: unknown): AcpSessionConfigValue[] {
+	if (!(raw && typeof raw === "object")) {
+		return [];
+	}
+	const candidate = raw as {
+		value?: unknown;
+		name?: unknown;
+		description?: unknown;
+		options?: unknown;
+	};
+	if (Array.isArray(candidate.options)) {
+		const group =
+			typeof candidate.name === "string" ? candidate.name : undefined;
+		return normalizeConfigValues(candidate.options).map((value) => ({
+			...value,
+			group,
+		}));
+	}
+	if (
+		typeof candidate.value !== "string" ||
+		typeof candidate.name !== "string"
+	) {
+		return [];
+	}
+	return [
+		{
+			value: candidate.value,
+			name: candidate.name,
+			description:
+				typeof candidate.description === "string"
+					? candidate.description
+					: undefined,
+		},
+	];
 }
 
 /** Dispatches `current_mode_update`, `session_info_update`, `usage_update`. */
@@ -1369,8 +1602,12 @@ function emitToolCallEvent(args: {
 			path?: string;
 			oldText?: string | null;
 			newText?: string;
+			content?: { type?: string; text?: string };
+			terminalId?: string;
 		}> | null;
 		locations?: ReadonlyArray<{ path?: string }> | null;
+		rawInput?: unknown;
+		rawOutput?: unknown;
 	};
 }): void {
 	const { output, providerId, sessionId, at, emit, kind, update } = args;
@@ -1384,21 +1621,80 @@ function emitToolCallEvent(args: {
 		);
 	}
 	const affectedFiles = extractAffectedFiles(update);
+	const detail = extractToolDetail(update);
 	const sharedPayload = {
 		toolCallId: update.toolCallId,
-		status: update.status ?? undefined,
+		title: update.title ?? undefined,
+		status: normalizeToolStatus(update.status),
 		toolKind: update.kind ?? undefined,
 		affectedFiles: affectedFiles.length > 0 ? affectedFiles : undefined,
+		detail,
 		at,
 	};
 	if (kind === "tool-call") {
 		emit(sessionId, {
 			kind,
 			...sharedPayload,
-			title: update.title ?? undefined,
 		});
 	} else {
 		emit(sessionId, { kind, ...sharedPayload });
+	}
+}
+
+function normalizeToolStatus(
+	status: string | null | undefined
+): string | undefined {
+	switch (status) {
+		case "in_progress":
+			return "running";
+		case "completed":
+			return "succeeded";
+		case "cancelled":
+		case "canceled":
+			return "cancelled";
+		default:
+			return status ?? undefined;
+	}
+}
+
+function extractToolDetail(update: {
+	content?: ReadonlyArray<{
+		type?: string;
+		content?: { type?: string; text?: string };
+		terminalId?: string;
+	}> | null;
+	rawInput?: unknown;
+	rawOutput?: unknown;
+}): string | undefined {
+	const chunks: string[] = [];
+	for (const entry of update.content ?? []) {
+		if (
+			entry.type === "content" &&
+			entry.content?.type === "text" &&
+			entry.content.text
+		) {
+			chunks.push(entry.content.text);
+		} else if (entry.type === "terminal" && entry.terminalId) {
+			chunks.push(`Terminal: ${entry.terminalId}`);
+		}
+	}
+	if (chunks.length > 0) {
+		return chunks.join("\n\n");
+	}
+	return stringifyToolPayload(update.rawOutput ?? update.rawInput);
+}
+
+function stringifyToolPayload(payload: unknown): string | undefined {
+	if (payload === undefined || payload === null) {
+		return;
+	}
+	if (typeof payload === "string") {
+		return payload;
+	}
+	try {
+		return JSON.stringify(payload, null, 2);
+	} catch {
+		return String(payload);
 	}
 }
 

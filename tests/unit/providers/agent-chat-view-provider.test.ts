@@ -315,11 +315,11 @@ describe("AgentChatViewProvider", () => {
 		expect(startCall).toBeDefined();
 		const params = startCall?.[1] as {
 			agentId: string;
-			mode: string;
+			modelId: string;
 			taskInstruction: string;
 		};
 		expect(params.agentId).toBe("claude");
-		expect(params.mode).toBe("claude-3-opus");
+		expect(params.modelId).toBe("claude-3-opus");
 		expect(params.taskInstruction).toContain("do the thing");
 	});
 

@@ -94,7 +94,7 @@ interface FakeSessionManager {
 	/** Drive an event to every active listener for the given ACP session id. */
 	emit(sessionId: string, event: AcpSessionEvent): void;
 	/** Throw on the next sendPrompt call (to test error paths). */
-	failNext(error: Error): void;
+	failNext(error: unknown): void;
 	/** Resolve a pending sendPrompt call (simulates turn completion). */
 	resolvePendingSend(): void;
 	/** Inspect how many sendPrompt calls are still pending. */
@@ -103,16 +103,18 @@ interface FakeSessionManager {
 
 function createFakeSessionManager(): FakeSessionManager {
 	const listenersBySessionId = new Map<string, Set<AcpSessionEventListener>>();
-	let nextSendError: Error | undefined;
+	let nextSendError: unknown;
 	const pending: Array<(value: void) => void> = [];
 
 	return {
 		sendPrompt: vi.fn(
+			// biome-ignore lint/nursery/useMaxParams: mock must match the real sendPrompt signature including options
 			(
 				_providerId: string,
 				_cwd: string | undefined,
 				_sessionId: string,
-				_prompt: string
+				_prompt: string,
+				_options?: { modelId?: string }
 			): Promise<void> => {
 				if (nextSendError) {
 					const err = nextSendError;
@@ -160,7 +162,7 @@ function createFakeSessionManager(): FakeSessionManager {
 				listener(event);
 			}
 		},
-		failNext(error: Error): void {
+		failNext(error: unknown): void {
 			nextSendError = error;
 		},
 		resolvePendingSend(): void {
@@ -359,6 +361,66 @@ describe("AcpChatRunner (T019)", () => {
 			expect(toolMsg?.status).toBe("succeeded");
 		});
 
+		it("merges tool-call progress detail into the existing transcript row", async () => {
+			const session = await seedSession();
+			const runner = makeRunner(session);
+			runner.start("hello");
+			await Promise.resolve();
+
+			manager.emit("acp-session-1", {
+				kind: "tool-call",
+				toolCallId: "tc-detail",
+				title: "Run tests",
+				status: "pending",
+				at: 100,
+			});
+			manager.emit("acp-session-1", {
+				kind: "tool-call-update",
+				toolCallId: "tc-detail",
+				title: "Run tests",
+				detail: "12 tests passed",
+				status: "succeeded",
+				at: 200,
+			});
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			const file = memento._store.get(
+				`gatomia.agentChat.sessions.transcript.${session.id}`
+			) as { messages: ChatMessage[] };
+			const tool = file.messages.find((message) => message.role === "tool") as
+				| { detail?: string }
+				| undefined;
+			expect(tool?.detail).toBe("12 tests passed");
+		});
+
+		it("upserts a tool row when an update arrives before tool_call", async () => {
+			const session = await seedSession();
+			const runner = makeRunner(session);
+			runner.start("hello");
+			await Promise.resolve();
+
+			manager.emit("acp-session-1", {
+				kind: "tool-call-update",
+				toolCallId: "tc-late",
+				title: "Inspect repository",
+				detail: "Found 12 files",
+				status: "running",
+				at: 200,
+			});
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			const file = memento._store.get(
+				`gatomia.agentChat.sessions.transcript.${session.id}`
+			) as { messages: ChatMessage[] };
+			const tool = file.messages.find((message) => message.role === "tool") as
+				| { title?: string; detail?: string }
+				| undefined;
+			expect(tool).toMatchObject({
+				title: "Inspect repository",
+				detail: "Found 12 files",
+			});
+		});
+
 		it("maps agent-thought-chunk events into a coalesced ThoughtChatMessage", async () => {
 			// The runner appends one thought entry on the first chunk and
 			// then patches the same message in place as more chunks arrive,
@@ -458,6 +520,58 @@ describe("AcpChatRunner (T019)", () => {
 			expect(plans[0]?.entries[1]?.status).toBe("in_progress");
 		});
 
+		it("persists ACP commands, config options, usage, mode, and session title", async () => {
+			const session = await seedSession();
+			const runner = makeRunner(session);
+			runner.start("hello");
+			await Promise.resolve();
+
+			manager.emit("acp-session-1", {
+				kind: "available-commands-update",
+				commands: [{ name: "review", description: "Review changes" }],
+				at: 10,
+			});
+			manager.emit("acp-session-1", {
+				kind: "config-options-update",
+				options: [
+					{
+						id: "mode",
+						name: "Mode",
+						category: "mode",
+						currentValue: "agent",
+						values: [{ value: "agent", name: "Agent" }],
+					},
+				],
+				at: 20,
+			});
+			manager.emit("acp-session-1", {
+				kind: "usage-update",
+				usage: { used: 10, size: 100 },
+				at: 30,
+			});
+			manager.emit("acp-session-1", {
+				kind: "current-mode-update",
+				modeId: "plan",
+				at: 40,
+			});
+			manager.emit("acp-session-1", {
+				kind: "session-info-update",
+				title: "Refactor chat",
+				updatedAt: "2026-07-11T12:00:00Z",
+				at: 50,
+			});
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			const updated = await store.getSession(session.id);
+			expect(updated).toMatchObject({
+				selectedModeId: "plan",
+				acpSessionTitle: "Refactor chat",
+				acpUsage: { used: 10, size: 100 },
+				availableCommands: [{ name: "review" }],
+				configOptions: [{ id: "mode", currentValue: "agent" }],
+			});
+		});
+
 		it("maps error events to an ErrorChatMessage marked retryable", async () => {
 			const session = await seedSession();
 			const runner = makeRunner(session);
@@ -551,6 +665,91 @@ describe("AcpChatRunner (T019)", () => {
 			await expect(runner.submit("queued-2")).rejects.toThrowError(
 				ALREADY_QUEUED_REGEX
 			);
+		});
+	});
+
+	describe("initial model application", () => {
+		it("passes selectedModelId as modelId on the first sendPrompt call", async () => {
+			const session = await store.createSession({
+				source: "acp",
+				agentId: "opencode",
+				agentDisplayName: "opencode",
+				capabilities: { source: "none" },
+				executionTarget: { kind: "local" },
+				trigger: { kind: "user" },
+				worktree: null,
+				cloud: null,
+				workspaceUri: "file:///fake/workspace",
+				selectedModelId: "gpt-4o",
+			});
+			registry.registerSession(session);
+			const runner = makeRunner(session);
+
+			runner.start("hello").catch(() => {
+				// Left hanging — test only inspects the sendPrompt args.
+			});
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(manager.sendPrompt).toHaveBeenCalledTimes(1);
+			const callArgs = manager.sendPrompt.mock.calls[0];
+			// [0]=providerId, [1]=cwd, [2]=sessionId, [3]=prompt, [4]=options
+			expect(callArgs?.[4]).toEqual({ modelId: "gpt-4o" });
+		});
+
+		it("does not pass modelId on follow-up sendPrompt calls", async () => {
+			const session = await store.createSession({
+				source: "acp",
+				agentId: "opencode",
+				agentDisplayName: "opencode",
+				capabilities: { source: "none" },
+				executionTarget: { kind: "local" },
+				trigger: { kind: "user" },
+				worktree: null,
+				cloud: null,
+				workspaceUri: "file:///fake/workspace",
+				selectedModelId: "gpt-4o",
+			});
+			registry.registerSession(session);
+			const runner = makeRunner(session);
+
+			const firstStart = runner.start("first prompt");
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			manager.emit("acp-session-1", {
+				kind: "turn-finished",
+				stopReason: "end_turn",
+				at: 100,
+			});
+			manager.resolvePendingSend();
+			await firstStart;
+
+			const submitPromise = runner.submit("follow-up");
+			await new Promise((resolve) => setTimeout(resolve, 0));
+			manager.emit("acp-session-1", {
+				kind: "turn-finished",
+				stopReason: "end_turn",
+				at: 200,
+			});
+			manager.resolvePendingSend();
+			await submitPromise;
+
+			// Second call should NOT have modelId in options.
+			expect(manager.sendPrompt).toHaveBeenCalledTimes(2);
+			const followUpArgs = manager.sendPrompt.mock.calls[1];
+			expect(followUpArgs?.[4]).toBeUndefined();
+		});
+
+		it("does not pass modelId when selectedModelId is not set", async () => {
+			const session = await seedSession();
+			const runner = makeRunner(session);
+
+			runner.start("hello").catch(() => {
+				// Left hanging — test only inspects the sendPrompt args.
+			});
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(manager.sendPrompt).toHaveBeenCalledTimes(1);
+			const callArgs = manager.sendPrompt.mock.calls[0];
+			expect(callArgs?.[4]).toBeUndefined();
 		});
 	});
 
@@ -664,6 +863,34 @@ describe("AcpChatRunner (T019)", () => {
 
 			const [, cwd] = manager.subscribe.mock.calls[0];
 			expect(cwd).toBe("/fake/workspace/.gatomia/worktrees/wt-1");
+		});
+	});
+
+	describe("error display (JSON-RPC error objects)", () => {
+		it("renders a plain JSON-RPC error object as its .message, not [object Object]", async () => {
+			const session = await seedSession();
+			const runner = makeRunner(session);
+			// The ACP SDK rejects with raw { code, message, data } objects,
+			// NOT Error instances. Simulate that shape.
+			manager.failNext({
+				code: -32_603,
+				message: "Model metadata for `gpt-5.3-codex` not found.",
+				data: null,
+			} as unknown as Error);
+
+			await runner.start("hello");
+
+			const file = memento._store.get(
+				`gatomia.agentChat.sessions.transcript.${session.id}`
+			) as { messages: ChatMessage[] };
+			const errMsg = file.messages.find((m) => m.role === "error") as
+				| { content: string }
+				| undefined;
+			expect(errMsg).toBeDefined();
+			expect(errMsg?.content).toContain(
+				"Model metadata for `gpt-5.3-codex` not found."
+			);
+			expect(errMsg?.content).not.toBe("[object Object]");
 		});
 	});
 });

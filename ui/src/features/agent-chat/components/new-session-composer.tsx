@@ -24,7 +24,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChipDropdown, type ChipDropdownOption } from "./chip-dropdown";
 import { ChipOverflowBar, type ChipOverflowItem } from "./chip-overflow-bar";
-import { PermissionChip } from "./permission-chip";
+import { ComposerContext } from "./composer-context";
 import { providerIconClass } from "./provider-icon";
 import type {
 	AgentChatAgentFileOption,
@@ -409,15 +409,6 @@ export function NewSessionComposer({
 				/>
 			),
 		});
-		list.push({
-			key: "permission",
-			node: (
-				<PermissionChip
-					onChange={onChangePermissionDefault}
-					value={permissionDefault}
-				/>
-			),
-		});
 		return list;
 	}, [
 		selectedProvider,
@@ -439,19 +430,21 @@ export function NewSessionComposer({
 		modelLabel,
 		isLoadingModels,
 		modelOptions,
-		permissionDefault,
 		handleProviderChange,
 		handleAgentFileChange,
 		handleModelChange,
 		handleThinkingLevelChange,
 		handleAgentRoleChange,
-		onChangePermissionDefault,
 		providerMenuHeader,
 	]);
 
 	return (
 		<div className="agent-chat-new-session">
 			<div className="agent-chat-new-session__box">
+				<div className="agent-chat-new-session__tip">
+					<strong>Tip:</strong> Use <code>/create_agent</code> to scaffold a
+					custom agent for your workflow.
+				</div>
 				<textarea
 					className="agent-chat-new-session__textarea"
 					onChange={(e) => setPrompt(e.target.value)}
@@ -482,6 +475,13 @@ export function NewSessionComposer({
 						</button>
 					</div>
 				</div>
+			</div>
+			<div className="agent-chat-new-session__context">
+				<ComposerContext
+					executionTargetLabel="Local"
+					onChangePermissionDefault={onChangePermissionDefault}
+					permissionDefault={permissionDefault}
+				/>
 			</div>
 		</div>
 	);

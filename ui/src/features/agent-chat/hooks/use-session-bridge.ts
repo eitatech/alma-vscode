@@ -18,6 +18,8 @@ import { vscode } from "@/bridge/vscode";
 import type {
 	AgentChatCatalog,
 	AgentChatSessionView,
+	AcpUsageSnapshot,
+	AvailableAgentCommand,
 	ChatMessage,
 	ExecutionTarget,
 	ExecutionTargetOption,
@@ -26,6 +28,7 @@ import type {
 	NewSessionRequest,
 	PendingFileWriteSummary,
 	PermissionDefaultMode,
+	SessionConfigOptionDescriptor,
 	SidebarSessionListItem,
 	UserChatMessage,
 } from "@/features/agent-chat/types";
@@ -68,6 +71,9 @@ export interface AgentChatBridgeState {
 	 * a loading placeholder.
 	 */
 	readonly modelsLoading: Readonly<Record<string, boolean>>;
+	readonly availableCommands: readonly AvailableAgentCommand[];
+	readonly configOptions: readonly SessionConfigOptionDescriptor[];
+	readonly acpUsage: AcpUsageSnapshot | undefined;
 }
 
 export interface AgentChatBridge {
@@ -87,6 +93,7 @@ export interface AgentChatBridge {
 	 * the host can forward it to the running agent.
 	 */
 	changeAgentRole(agentRoleId: string): void;
+	changeConfigOption(configId: string, value: string): void;
 	changeTarget(target: ExecutionTarget): void;
 	/** Sidebar-only: switch the bound session via the host. */
 	switchSession(sessionId: string): void;
@@ -140,6 +147,9 @@ const INITIAL_STATE: AgentChatBridgeState = {
 	pendingWrites: [],
 	permissionDefault: undefined,
 	modelsLoading: {},
+	availableCommands: [],
+	configOptions: [],
+	acpUsage: undefined,
 };
 
 type BridgeAction =
@@ -187,6 +197,16 @@ type BridgeAction =
 			};
 	  }
 	| {
+			type: "session/metadata-changed";
+			payload: {
+				selectedModeId?: string;
+				availableCommands: AvailableAgentCommand[];
+				configOptions: SessionConfigOptionDescriptor[];
+				acpUsage?: AcpUsageSnapshot;
+				acpSessionTitle?: string;
+			};
+	  }
+	| {
 			type: "sessions/list-changed";
 			payload: { sessions: SidebarSessionListItem[] };
 	  }
@@ -215,6 +235,9 @@ function reducer(
 				availableTargets: [...action.payload.availableTargets],
 				hasArchivedTranscript: action.payload.hasArchivedTranscript,
 				clearedReason: undefined,
+				availableCommands: action.payload.session.availableCommands ?? [],
+				configOptions: action.payload.session.configOptions ?? [],
+				acpUsage: action.payload.session.acpUsage,
 			};
 		case "messages/appended": {
 			const seen = new Set(state.messages.map((m) => m.id));
@@ -280,6 +303,25 @@ function reducer(
 					selectedModelId: action.payload.currentModelId,
 				},
 				availableModels: action.payload.availableModels,
+			};
+		}
+		case "session/metadata-changed": {
+			if (!state.session) {
+				return state;
+			}
+			return {
+				...state,
+				availableCommands: action.payload.availableCommands,
+				configOptions: action.payload.configOptions,
+				acpUsage: action.payload.acpUsage,
+				session: {
+					...state.session,
+					selectedModeId: action.payload.selectedModeId,
+					availableCommands: action.payload.availableCommands,
+					configOptions: action.payload.configOptions,
+					acpUsage: action.payload.acpUsage,
+					acpSessionTitle: action.payload.acpSessionTitle,
+				},
 			};
 		}
 		case "sessions/list-changed":
@@ -411,6 +453,29 @@ const INCOMING_HANDLERS: Record<
 			payload: {
 				availableModels: payload.availableModels,
 				currentModelId: payload.currentModelId,
+			},
+		};
+	},
+	"agent-chat/session/metadata-changed": (ctx) => {
+		const payload = ctx.payload as {
+			sessionId: string;
+			selectedModeId?: string;
+			availableCommands?: AvailableAgentCommand[];
+			configOptions?: SessionConfigOptionDescriptor[];
+			acpUsage?: AcpUsageSnapshot;
+			acpSessionTitle?: string;
+		};
+		if (ctx.activeSessionId && payload.sessionId !== ctx.activeSessionId) {
+			return;
+		}
+		return {
+			type: "session/metadata-changed",
+			payload: {
+				selectedModeId: payload.selectedModeId,
+				availableCommands: payload.availableCommands ?? [],
+				configOptions: payload.configOptions ?? [],
+				acpUsage: payload.acpUsage,
+				acpSessionTitle: payload.acpSessionTitle,
 			},
 		};
 	},
@@ -606,6 +671,19 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 		[activeSessionId]
 	);
 
+	const changeConfigOption = useCallback(
+		(configId: string, value: string) => {
+			if (!activeSessionId) {
+				return;
+			}
+			vscode.postMessage({
+				type: "agent-chat/control/change-config-option",
+				payload: { sessionId: activeSessionId, configId, value },
+			});
+		},
+		[activeSessionId]
+	);
+
 	const changeTarget = useCallback(
 		(target: ExecutionTarget) => {
 			if (!activeSessionId) {
@@ -715,6 +793,7 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 			changeModel,
 			changeThinkingLevel,
 			changeAgentRole,
+			changeConfigOption,
 			changeTarget,
 			switchSession,
 			startNewSession,
@@ -737,6 +816,7 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 			changeModel,
 			changeThinkingLevel,
 			changeAgentRole,
+			changeConfigOption,
 			changeTarget,
 			switchSession,
 			startNewSession,

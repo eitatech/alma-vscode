@@ -31,9 +31,10 @@
 
 import { randomUUID } from "node:crypto";
 import type { Disposable } from "vscode";
-import type {
-	AcpSessionEvent,
-	AcpSessionEventListener,
+import {
+	type AcpSessionEvent,
+	type AcpSessionEventListener,
+	toMessage,
 } from "../../services/acp/acp-client";
 import type { AgentChatRegistry } from "./agent-chat-registry";
 import type { AgentChatSessionStore } from "./agent-chat-session-store";
@@ -69,7 +70,8 @@ export interface AcpChatRunnerSessionManager {
 		providerId: string,
 		cwd: string | undefined,
 		sessionId: string,
-		prompt: string
+		prompt: string,
+		options?: { modelId?: string }
 	): Promise<void>;
 	cancel(
 		providerId: string,
@@ -82,6 +84,27 @@ export interface AcpChatRunnerSessionManager {
 		sessionId: string,
 		listener: AcpSessionEventListener
 	): Disposable;
+	/**
+	 * Optional: hot-swap the agent-side model via the experimental
+	 * `session/set_model` RPC. The runner calls this before the first
+	 * prompt when the session has a `selectedModelId` so the agent
+	 * uses the user's chosen model from the very first turn. When the
+	 * method is absent or the agent does not support the RPC, the
+	 * runner silently falls back to the agent's default model.
+	 */
+	setSessionModel?(
+		providerId: string,
+		cwd: string | undefined,
+		sessionId: string,
+		modelId: string
+	): Promise<void>;
+	setSessionConfigOption?(
+		providerId: string,
+		cwd: string | undefined,
+		sessionId: string,
+		configId: string,
+		value: string
+	): Promise<void>;
 	/**
 	 * Optional pending-writes plumbing (Phase 4). When the manager
 	 * exposes the buffer-then-apply API the runner forwards snapshot
@@ -286,7 +309,22 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 			executionTargetKind: this.session.executionTarget.kind,
 		});
 
-		await this.dispatchToAcp(initialPrompt);
+		await this.dispatchToAcp(initialPrompt, undefined, {
+			isInitial: true,
+		});
+	}
+
+	async changeConfigOption(configId: string, value: string): Promise<void> {
+		if (!this.manager.setSessionConfigOption) {
+			throw new Error("This ACP provider does not support session options.");
+		}
+		await this.manager.setSessionConfigOption(
+			this.session.agentId,
+			this.resolveCwd(),
+			this.acpSessionId,
+			configId,
+			value
+		);
 	}
 
 	/**
@@ -342,7 +380,7 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 					logTelemetry(AGENT_CHAT_TELEMETRY_EVENTS.ERROR, {
 						sessionId: this.sessionId,
 						stage: "event-handler",
-						error: err instanceof Error ? err.message : String(err),
+						error: toMessage(err),
 					});
 				});
 			}
@@ -379,7 +417,7 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 						logTelemetry(AGENT_CHAT_TELEMETRY_EVENTS.ERROR, {
 							sessionId: this.sessionId,
 							stage: "pending-writes-listener",
-							error: error instanceof Error ? error.message : String(error),
+							error: toMessage(error),
 						});
 					}
 				}
@@ -432,7 +470,8 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 
 	private async dispatchToAcp(
 		content: string,
-		userMessageId?: string
+		userMessageId?: string,
+		options?: { isInitial?: boolean }
 	): Promise<void> {
 		this.turnInFlight = true;
 		this.turnBuffer = "";
@@ -440,11 +479,20 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 		this.currentTurnId = this.currentTurnId ?? randomUUID();
 
 		try {
+			// On the first prompt, pass the user's selected model so the
+			// client applies it via `session/set_model` before the turn.
+			// Subsequent follow-ups reuse the same session, so we don't
+			// need to re-apply the model.
+			const sendOptions =
+				options?.isInitial && this.session.selectedModelId
+					? { modelId: this.session.selectedModelId }
+					: undefined;
 			await this.manager.sendPrompt(
 				this.session.agentId,
 				this.resolveCwd(),
 				this.acpSessionId,
-				content
+				content,
+				sendOptions
 			);
 
 			// If the promise resolves without us having seen an explicit
@@ -482,6 +530,32 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 			case "plan-update":
 				await this.handlePlanUpdate(event.entries, event.at);
 				break;
+			case "available-commands-update":
+				await this.store.updateSession(this.sessionId, {
+					availableCommands: [...event.commands],
+				});
+				break;
+			case "config-options-update":
+				await this.store.updateSession(this.sessionId, {
+					configOptions: [...event.options],
+				});
+				break;
+			case "usage-update":
+				await this.store.updateSession(this.sessionId, {
+					acpUsage: event.usage,
+				});
+				break;
+			case "current-mode-update":
+				await this.store.updateSession(this.sessionId, {
+					selectedModeId: event.modeId,
+				});
+				break;
+			case "session-info-update":
+				await this.store.updateSession(this.sessionId, {
+					acpSessionTitle: event.title,
+					acpUpdatedAt: event.updatedAt,
+				});
+				break;
 			case "tool-call":
 				await this.handleToolCallStarted(event);
 				break;
@@ -502,11 +576,8 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 				);
 				break;
 			default:
-				// available-commands-update / current-mode-update /
-				// usage-update / session-info-update / user-message-chunk
-				// are observed on the bus for future consumers but do not
-				// produce transcript entries today. We deliberately skip
-				// them so the chat stays focused on the agent's narrative.
+				// user-message-chunk is only used when loading agent-owned
+				// history. Live prompts are already persisted by the runner.
 				break;
 		}
 	}
@@ -543,7 +614,7 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 			logTelemetry(AGENT_CHAT_TELEMETRY_EVENTS.ERROR, {
 				sessionId: this.sessionId,
 				stage: "models-changed-persist",
-				error: error instanceof Error ? error.message : String(error),
+				error: toMessage(error),
 			});
 		}
 		this.fireEvent({
@@ -691,6 +762,7 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 			status: (event.status as ToolCallChatMessage["status"]) ?? "pending",
 			toolKind: event.toolKind,
 			affectedFiles: event.affectedFiles,
+			detail: event.detail,
 		};
 		await this.store.appendMessages(this.sessionId, [message]);
 
@@ -710,6 +782,10 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 	): Promise<void> {
 		const messageId = this.toolCallMessageIdByToolCallId.get(event.toolCallId);
 		if (!messageId) {
+			await this.handleToolCallStarted({
+				...event,
+				kind: "tool-call",
+			});
 			return;
 		}
 		const nextStatus =
@@ -720,6 +796,12 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 		const patch: Partial<ChatMessage> = { status: nextStatus };
 		if (event.toolKind !== undefined) {
 			(patch as Partial<ToolCallChatMessage>).toolKind = event.toolKind;
+		}
+		if (event.title !== undefined) {
+			(patch as Partial<ToolCallChatMessage>).title = event.title;
+		}
+		if (event.detail !== undefined) {
+			(patch as Partial<ToolCallChatMessage>).detail = event.detail;
 		}
 		if (event.affectedFiles !== undefined) {
 			(patch as Partial<ToolCallChatMessage>).affectedFiles =
@@ -849,7 +931,7 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 			logTelemetry(AGENT_CHAT_TELEMETRY_EVENTS.ERROR, {
 				sessionId: this.sessionId,
 				stage: "cancel",
-				error: err instanceof Error ? err.message : String(err),
+				error: toMessage(err),
 			});
 		}
 
@@ -970,7 +1052,7 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 			timestamp: this.now(),
 			sequence: this.nextSequence,
 			role: "error",
-			content: error instanceof Error ? error.message : String(error),
+			content: toMessage(error),
 			category,
 			retryable: true,
 		};
@@ -1111,7 +1193,7 @@ export class AcpChatRunner implements AgentChatRunnerHandle {
 	}
 
 	private classifyError(error: unknown): ErrorChatMessageCategory {
-		const raw = error instanceof Error ? error.message : String(error);
+		const raw = toMessage(error);
 		if (raw.includes("timed out")) {
 			return "acp-timeout";
 		}

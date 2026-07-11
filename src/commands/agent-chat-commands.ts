@@ -34,6 +34,7 @@ import type {
 	ExecutionTarget,
 } from "../features/agent-chat/types";
 import { ACP_NOT_SUPPORTED } from "../services/acp/types";
+import { toMessage } from "../services/acp/acp-client";
 
 // ============================================================================
 // Command IDs (keep package.json contribution points in sync)
@@ -71,7 +72,10 @@ export interface StartNewAcpSessionParams {
 	readonly agentId: string;
 	readonly agentDisplayName: string;
 	readonly agentCommand: string;
+	/** Session mode id (workspace / per-spec / per-prompt). */
 	readonly mode?: string;
+	/** Model id selected by the user in the picker. */
+	readonly modelId?: string;
 	readonly thinkingLevelId?: string;
 	readonly agentRoleId?: string;
 	readonly taskInstruction?: string;
@@ -601,7 +605,7 @@ async function tryAcpSetModel(
 		);
 		return true;
 	} catch (error) {
-		const message = error instanceof Error ? error.message : String(error);
+		const message = toMessage(error);
 		if (message.includes(ACP_NOT_SUPPORTED)) {
 			return false;
 		}
