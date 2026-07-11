@@ -70,7 +70,17 @@ function generateRequestId() {
 	) {
 		return crypto.randomUUID();
 	}
-	return `form-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+	// Fallback for environments without crypto.randomUUID — use
+	// crypto.getRandomValues for cryptographically strong randomness
+	// instead of Math.random() (S2245).
+	if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+		const bytes = crypto.getRandomValues(new Uint8Array(9));
+		const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+			""
+		);
+		return `form-${Date.now()}-${hex}`;
+	}
+	return `form-${Date.now()}`;
 }
 
 export function submitForm(

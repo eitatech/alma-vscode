@@ -4,6 +4,7 @@
  * Based on specs/006-welcome-screen/data-model.md and spec.md FR-013
  */
 
+import { randomUUID } from "node:crypto";
 import type { SystemDiagnostic } from "../types/welcome";
 
 export class SystemDiagnostics {
@@ -129,7 +130,7 @@ export class SystemDiagnostics {
 	 * Generate unique diagnostic ID
 	 */
 	private generateId(): string {
-		return `diag-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+		return `diag-${Date.now()}-${randomUUID().slice(0, 9)}`;
 	}
 
 	/**

@@ -31,6 +31,24 @@ const VERSION_FLAG_TIMEOUT_MS = 5000;
 const NPX_PACKAGE_NAME_RE = /(@[^/]+\/[^@]+)@.+/;
 const VERSION_RE = /(\d+\.\d+\.\d+[^\s]*)/;
 
+/**
+ * Validates that a string contains only safe characters for use in a
+ * shell command (alphanumeric, dash, underscore, dot, forward slash,
+ * at-sign, colon, and tilde). Rejects shell metacharacters that could
+ * enable command injection when the string is interpolated into a
+ * command sent to the terminal.
+ */
+const SHELL_SAFE_CHARS_RE = /^[a-zA-Z0-9@._\-/~:]+$/;
+
+/**
+ * Validates that a URL is HTTPS. Prevents command injection or
+ * SSRF through malicious registry entries that substitute
+ * non-HTTP schemes (file://, javascript:, etc.).
+ */
+function isHttpsUrl(url: string): boolean {
+	return url.startsWith("https://");
+}
+
 function archKeyFor(cpu: string): "aarch64" | "x86_64" | undefined {
 	if (cpu === "arm64" || cpu === "arm") {
 		return "aarch64";
@@ -451,8 +469,19 @@ function buildBinaryInstallCommand(
 	if (!binary.archive) {
 		return;
 	}
-	const installDir = `~/.local/bin/${entry.id}`;
+	// Validate registry-sourced data before interpolating into a shell
+	// command to prevent command injection through malicious entries.
+	if (!isHttpsUrl(binary.archive)) {
+		return;
+	}
+	if (!SHELL_SAFE_CHARS_RE.test(entry.id)) {
+		return;
+	}
 	const archiveFile = binary.archive.split("/").pop() ?? "archive";
+	if (!SHELL_SAFE_CHARS_RE.test(archiveFile)) {
+		return;
+	}
+	const installDir = `~/.local/bin/${entry.id}`;
 	const extractCmd = archiveFile.endsWith(".zip")
 		? `unzip -o -q "${archiveFile}"`
 		: `tar -xzf "${archiveFile}"`;

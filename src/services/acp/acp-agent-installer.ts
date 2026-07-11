@@ -1,11 +1,11 @@
 import { execFile } from "node:child_process";
-import { platform } from "node:os";
 import { promisify } from "node:util";
-import { commands, env, type Terminal, Uri, window } from "vscode";
+import { env, type Terminal, Uri, window } from "vscode";
 import type { AcpProviderDescriptor } from "./types";
 
 const execFileAsync = promisify(execFile);
 const INSTALL_TERMINAL_NAME = "GatomIA - ACP Agent Install";
+const COMMAND_SPLIT_RE = /\s+/;
 
 export interface AcpAgentInstallerOptions {
 	readonly outputChannel?: { appendLine(value: string): void };
@@ -124,17 +124,33 @@ export class AcpAgentInstaller {
 	}
 
 	private async runShellCommand(command: string): Promise<void> {
-		const shell = platform() === "win32" ? "cmd" : "/bin/sh";
-		const shellFlag = platform() === "win32" ? "/c" : "-c";
-		await execFileAsync(shell, [shellFlag, command], { timeout: 120_000 });
+		// Parse the command string into an executable and arguments array
+		// to avoid shell injection through metacharacters in registry-sourced
+		// command strings. We use execFile (no shell) so each argument is
+		// passed literally to the child process.
+		const parts = command.trim().split(COMMAND_SPLIT_RE);
+		if (parts.length === 0 || !parts[0]) {
+			throw new Error(`Invalid install command: "${command}"`);
+		}
+		const executable = parts[0];
+		const args = parts.slice(1);
+		await execFileAsync(executable, args, {
+			timeout: 120_000,
+			shell: false,
+		});
 	}
 
 	private async openInstallUrl(url: string): Promise<void> {
-		if (url.startsWith("https://")) {
-			await env.openExternal(Uri.parse(url));
-		} else {
-			await commands.executeCommand("workbench.action.openUrl", Uri.parse(url));
+		// Only allow http/https URLs to prevent opening arbitrary URI schemes
+		// (file://, javascript:, etc.) that could be exploited.
+		const lowerUrl = url.toLowerCase();
+		if (!(lowerUrl.startsWith("https://") || lowerUrl.startsWith("http://"))) {
+			this.outputChannel?.appendLine(
+				`[AcpAgentInstaller] Refused to open URL with unsupported scheme: ${url}`
+			);
+			return;
 		}
+		await env.openExternal(Uri.parse(url));
 	}
 
 	private async probeVersionAfterInstall(

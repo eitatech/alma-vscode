@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { ColorThemeKind, Uri, window, type Webview } from "vscode";
 
 /**
@@ -92,13 +93,14 @@ function escapeHtml(value: string): string {
 		.replace(/'/g, "&#039;");
 }
 
-function getNonce() {
-	let text = "";
+function getNonce(): string {
 	const possible =
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 	const NonceLength = 32;
+	const bytes = randomBytes(NonceLength);
+	let text = "";
 	for (let i = 0; i < NonceLength; i++) {
-		text += possible.charAt(Math.floor(Math.random() * possible.length));
+		text += possible.charAt(bytes[i] % possible.length);
 	}
 	return text;
 }

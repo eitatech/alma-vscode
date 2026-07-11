@@ -4,11 +4,11 @@
  * Used by DependencyChecker and the Welcome Screen provider
  */
 
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import { homedir } from "node:os";
 import { promisify } from "node:util";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 const COMMAND_SPLIT_REGEX = /\s+/u;
 const NEWLINE_SPLIT_REGEX = /\r?\n/u;
 
@@ -74,16 +74,15 @@ export const checkCLI = async (
 	command: string,
 	timeoutMs = 5000
 ): Promise<CLICheckResult> => {
-	const binaryName = command.trim().split(COMMAND_SPLIT_REGEX)[0];
-	const extractOutputVersion = (output: string): string | null => {
-		const version = extractVersion(output);
-		return version || null;
-	};
+	const parts = command.trim().split(COMMAND_SPLIT_REGEX);
+	const binaryName = parts[0] ?? "";
+	const args = parts.slice(1);
 
 	try {
-		const { stdout, stderr } = await execAsync(command, {
+		const { stdout, stderr } = await execFileAsync(binaryName, args, {
 			timeout: timeoutMs,
 			encoding: "utf8",
+			shell: false,
 			env: {
 				...process.env,
 				PATH: getExtendedPath(),
@@ -91,68 +90,80 @@ export const checkCLI = async (
 		});
 
 		const output = stdout.trim() || stderr.trim();
-
-		// Try JSON parse first (some CLIs output JSON)
-		try {
-			const json = JSON.parse(output);
-			if (json.version) {
-				return {
-					installed: true,
-					version: json.version,
-					output,
-				};
-			}
-		} catch {
-			// Not JSON, continue to regex parsing
-		}
-
-		// Extract version from text output
-		const version = extractVersion(output);
-
-		return {
-			installed: true,
-			version: version || output || null,
-			output,
-		};
+		return parseCLISuccessOutput(output);
 	} catch (error: unknown) {
-		const typedError = error as {
-			code?: string | number;
-			killed?: boolean;
-			signal?: string;
-			message?: string;
-			stdout?: string;
-			stderr?: string;
-		};
+		return handleCLIError(error, binaryName, timeoutMs);
+	}
+};
 
-		// Timeout
-		if (typedError.killed || typedError.signal === "SIGTERM") {
+function parseCLISuccessOutput(output: string): CLICheckResult {
+	// Try JSON parse first (some CLIs output JSON)
+	try {
+		const json = JSON.parse(output);
+		if (json.version) {
 			return {
-				installed: false,
-				version: null,
-				error: `Command timed out after ${timeoutMs}ms`,
+				installed: true,
+				version: json.version,
+				output,
 			};
 		}
+	} catch {
+		// Not JSON, continue to regex parsing
+	}
 
-		const executablePath = await locateCLIExecutable(binaryName, timeoutMs);
-		if (executablePath) {
-			const output =
-				`${typedError.stdout || ""}${typedError.stderr || ""}`.trim();
-			return {
-				installed: false,
-				version: extractOutputVersion(output),
-				output: output || executablePath,
-				error: typedError.message || String(error),
-			};
-		}
+	// Extract version from text output
+	const version = extractVersion(output);
 
-		// Other errors
+	return {
+		installed: true,
+		version: version || output || null,
+		output,
+	};
+}
+
+async function handleCLIError(
+	error: unknown,
+	binaryName: string,
+	timeoutMs: number
+): Promise<CLICheckResult> {
+	const typedError = error as {
+		code?: string | number;
+		killed?: boolean;
+		signal?: string;
+		message?: string;
+		stdout?: string;
+		stderr?: string;
+	};
+
+	// Timeout
+	if (typedError.killed || typedError.signal === "SIGTERM") {
 		return {
 			installed: false,
 			version: null,
+			error: `Command timed out after ${timeoutMs}ms`,
+		};
+	}
+
+	const executablePath = await locateCLIExecutable(binaryName, timeoutMs);
+	if (executablePath) {
+		const output =
+			`${typedError.stdout || ""}${typedError.stderr || ""}`.trim();
+		const version = extractVersion(output) || null;
+		return {
+			installed: false,
+			version,
+			output: output || executablePath,
 			error: typedError.message || String(error),
 		};
 	}
-};
+
+	// Other errors
+	return {
+		installed: false,
+		version: null,
+		error: typedError.message || String(error),
+	};
+}
 
 export const locateCLIExecutable = async (
 	binaryName: string,
@@ -162,15 +173,15 @@ export const locateCLIExecutable = async (
 		return null;
 	}
 
-	const lookupCommand =
-		process.platform === "win32"
-			? `where ${binaryName}`
-			: `which ${binaryName}`;
+	// Use execFile (no shell) to avoid command injection through
+	// metacharacters in the binary name.
+	const lookupBinary = process.platform === "win32" ? "where.exe" : "which";
 
 	try {
-		const { stdout } = await execAsync(lookupCommand, {
+		const { stdout } = await execFileAsync(lookupBinary, [binaryName], {
 			timeout: timeoutMs,
 			encoding: "utf8",
+			shell: false,
 			env: {
 				...process.env,
 				PATH: getExtendedPath(),

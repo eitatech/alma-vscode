@@ -3,6 +3,7 @@
  * Simulates API interaction with latency and error handling.
  */
 
+import { randomBytes } from "node:crypto";
 import { logTasksDispatchSuccess, logTasksDispatchFailed } from "./telemetry";
 import type { Specification, ChangeRequest, TaskLink } from "./types";
 
@@ -78,15 +79,19 @@ export async function dispatchToTasksPrompt(
 ): Promise<TasksPromptResponse> {
 	const startTime = Date.now();
 
-	// Simulate network latency (500-1500ms)
-	const latency = 500 + Math.random() * 1000;
+	// Simulate network latency (500-1500ms) using crypto-based random
+	const latencyBytes = randomBytes(4);
+	const latencyRand = latencyBytes.readUInt32BE(0) / 0x1_00_00_00_00;
+	const latency = 500 + latencyRand * 1000;
 	await new Promise((resolve) => setTimeout(resolve, latency));
 
 	try {
 		// Mock logic: 10% chance of failure to test error handling
 		// In production, this would be a real API call
 		// For demo/dev purposes, we might want to control this via config or environment
-		const shouldFail = Math.random() < 0.1;
+		const failBytes = randomBytes(4);
+		const failRand = failBytes.readUInt32BE(0) / 0x1_00_00_00_00;
+		const shouldFail = failRand < 0.1;
 
 		if (shouldFail) {
 			throw new Error("Tasks prompt service unavailable (simulated)");

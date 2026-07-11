@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
 	type ExtensionContext,
 	type MessageItem,
@@ -445,7 +446,7 @@ export class CreateSpecInputController {
 			}
 
 			images.push({
-				id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+				id: `${Date.now()}-${randomUUID().slice(0, 9)}`,
 				uri: uri.toString(),
 				name: fileName,
 				dataUrl: result.dataUrl,

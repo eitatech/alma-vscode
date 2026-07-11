@@ -41,6 +41,14 @@ const LOG_PREFIX = "[KnownAgentDetector]";
 const EXEC_TIMEOUT_MS = 10_000;
 const WHITESPACE_SPLIT_RE = /\s/;
 
+/**
+ * Validates that a binary name contains only safe characters before
+ * interpolating it into a shell command string (`command -v <binary>`
+ * or `which <binary>`). Prevents command injection through
+ * metacharacters in agent catalog entries.
+ */
+const SAFE_BINARY_NAME_RE = /^[a-zA-Z0-9@._\-/]+$/;
+
 // ============================================================================
 // PATH helpers
 // ============================================================================
@@ -266,6 +274,12 @@ export class KnownAgentDetector {
 	}
 
 	private async checkPathUnix(binary: string): Promise<boolean> {
+		if (!SAFE_BINARY_NAME_RE.test(binary)) {
+			console.log(
+				`${LOG_PREFIX} refusing to check unsafe binary name: "${binary}"`
+			);
+			return false;
+		}
 		const shell = getUserShell();
 		// Extend PATH with common package-manager bin directories so that
 		// tools installed via bun, cargo, uv, Homebrew, etc. are discoverable
@@ -323,6 +337,9 @@ export class KnownAgentDetector {
 	 * tested with a mocked `node:child_process` that only provides `execFile`.
 	 */
 	private locateCLIExecutable(binary: string): Promise<string | null> {
+		if (!SAFE_BINARY_NAME_RE.test(binary)) {
+			return Promise.resolve(null);
+		}
 		return new Promise<string | null>((resolve) => {
 			if (platform() === "win32") {
 				execFileCb(
@@ -332,13 +349,26 @@ export class KnownAgentDetector {
 						timeout: EXEC_TIMEOUT_MS,
 						env: { ...process.env, PATH: getExtendedPath() },
 					},
-					(err, stdout) => {
+					async (err, stdout) => {
 						if (err) {
 							resolve(null);
 							return;
 						}
 						const path = stdout.trim().split(WHITESPACE_SPLIT_RE)[0];
-						resolve(path || null);
+						if (!path) {
+							resolve(null);
+							return;
+						}
+						// Validate the resolved path is an accessible file
+						// before returning it. The extended PATH includes
+						// user-writable directories; verifying accessibility
+						// prevents returning stale or broken entries.
+						try {
+							await access(path, constants.F_OK);
+							resolve(path);
+						} catch {
+							resolve(null);
+						}
 					}
 				);
 				return;
@@ -371,7 +401,7 @@ export class KnownAgentDetector {
 					timeout: EXEC_TIMEOUT_MS,
 					env: { ...process.env, PATH: getExtendedPath() },
 				},
-				(err, stdout) => {
+				async (err, stdout) => {
 					if (err) {
 						console.log(
 							`${LOG_PREFIX} where.exe ${binary} failed: ${err.message}`
@@ -379,7 +409,21 @@ export class KnownAgentDetector {
 						resolve(false);
 						return;
 					}
-					resolve(stdout.trim().length > 0);
+					const path = stdout.trim().split(WHITESPACE_SPLIT_RE)[0];
+					if (!path) {
+						resolve(false);
+						return;
+					}
+					// Validate the resolved path is an accessible file before
+					// accepting it. The extended PATH includes user-writable
+					// directories; verifying accessibility prevents accepting
+					// stale or broken entries returned by where.exe.
+					try {
+						await access(path, constants.F_OK);
+						resolve(true);
+					} catch {
+						resolve(false);
+					}
 				}
 			);
 		});

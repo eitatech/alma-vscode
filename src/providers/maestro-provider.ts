@@ -357,8 +357,19 @@ export class MaestroProvider {
 
 	/**
 	 * Handle open external URL.
+	 * Only http/https URLs are allowed to prevent opening arbitrary
+	 * URI schemes (file://, javascript:, etc.) from webview messages.
 	 */
 	async onOpenExternal(url: string): Promise<void> {
+		// Only allow http/https URLs to prevent opening arbitrary URI schemes
+		// (file://, javascript:, etc.) from webview messages.
+		const lowerUrl = url.toLowerCase();
+		if (!(lowerUrl.startsWith("https://") || lowerUrl.startsWith("http://"))) {
+			this.outputChannel.appendLine(
+				`[Maestro] Refused to open URL with unsupported scheme: ${url}`
+			);
+			return;
+		}
 		await env.openExternal(Uri.parse(url));
 	}
 
