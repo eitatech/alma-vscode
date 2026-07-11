@@ -1964,6 +1964,17 @@ b {
 	height: 14px;
 	object-fit: contain;
 	flex-shrink: 0;
+	/* Registry icons ship as dark-on-transparent SVGs/PNGs. In a light
+	 * theme they render correctly (dark icon on light background). In a
+	 * dark theme the dark icon becomes invisible, so we invert the
+	 * luminance while preserving hue via the invert + hue-rotate combo.
+	 * The `data-vscode-theme-kind` attribute is injected onto <body> by
+	 * `getWebviewContent` based on `window.activeColorTheme.kind`. */
+}
+
+body[data-vscode-theme-kind~="vscode-dark"] .agent-chat-chip__icon-img,
+body[data-vscode-theme-kind~="vscode-high-contrast"] .agent-chat-chip__icon-img {
+	filter: invert(1) hue-rotate(180deg);
 }
 
 .agent-chat-chip__menu {

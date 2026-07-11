@@ -14,6 +14,8 @@ export const devinDescriptor: AcpProviderDescriptor = {
 	envAuthVars: ["WINDSURF_API_KEY"],
 	installUrl: "https://cli.devin.ai/docs/installation",
 	authCommand: "devin auth login",
+	installCommand: "curl -fsSL https://cli.devin.ai/install | bash",
+	updateCommand: "devin update",
 	probe: probeDevinCli,
 };
 
@@ -26,6 +28,8 @@ export const geminiDescriptor: AcpProviderDescriptor = {
 	envAuthVars: ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
 	installUrl: "https://github.com/google-gemini/gemini-cli#installation",
 	authCommand: "gemini auth login",
+	installCommand: "npm install -g @google/gemini-cli",
+	updateCommand: "npm install -g @google/gemini-cli@latest",
 	probe: probeGeminiCli,
 };
 

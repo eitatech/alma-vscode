@@ -39,6 +39,7 @@ import {
 } from "./features/agent-chat/agent-chat-entry-points";
 import { AcpProviderRegistry } from "./services/acp/acp-provider-registry";
 import { AcpSessionManager } from "./services/acp/acp-session-manager";
+import type { AcpProviderDescriptor } from "./services/acp/types";
 import {
 	createDescriptorFromKnownAgent,
 	createDescriptorFromRemoteEntry,
@@ -2288,6 +2289,60 @@ function scheduleRemoteRegistryMerge(
 		});
 }
 
+/**
+ * Merge metadata (iconUrl, latestVersion, installCommand, updateCommand,
+ * description) from a remote registry entry into an existing built-in or
+ * local descriptor. The original probe / spawnCommand / spawnArgs are
+ * preserved — only display and update metadata is enriched.
+ *
+ * Returns the original descriptor unchanged when the remote entry carries
+ * no new information, so callers can skip re-registering.
+ */
+function mergeRemoteMetadata(
+	existing: AcpProviderDescriptor,
+	remote: {
+		icon?: string;
+		version?: string;
+		description?: string;
+		distribution?: {
+			npx?: { package: string };
+		};
+	}
+): AcpProviderDescriptor {
+	const iconUrl = remote.icon ?? existing.iconUrl;
+	const latestVersion = remote.version ?? existing.latestVersion;
+	const description = remote.description ?? existing.description;
+	// Derive install/update commands from npx distribution when the
+	// built-in/local descriptor doesn't already have them.
+	const npxPackage = remote.distribution?.npx?.package;
+	const installCommand =
+		existing.installCommand ??
+		(npxPackage ? `npm install -g ${npxPackage}` : undefined);
+	const updateCommand =
+		existing.updateCommand ??
+		(npxPackage ? `npm install -g ${npxPackage}` : undefined);
+
+	// Nothing to merge — skip re-registration.
+	if (
+		iconUrl === existing.iconUrl &&
+		latestVersion === existing.latestVersion &&
+		description === existing.description &&
+		installCommand === existing.installCommand &&
+		updateCommand === existing.updateCommand
+	) {
+		return existing;
+	}
+
+	return {
+		...existing,
+		iconUrl,
+		latestVersion,
+		description,
+		installCommand,
+		updateCommand,
+	};
+}
+
 function mergeRemoteEntries(
 	registry: AcpProviderRegistry,
 	entries: readonly { id: string }[],
@@ -2303,10 +2358,20 @@ function mergeRemoteEntries(
 		// the host system. Replacing them with a remote descriptor — which
 		// always probes as `installed: false` — would falsely flag locally
 		// installed CLIs (opencode, junie, copilot, …) as missing.
+		// However, we DO merge metadata (iconUrl, latestVersion,
+		// installCommand, updateCommand, description) from the remote entry
+		// so built-in/local agents get the correct icon and update info.
 		if (
 			existing &&
 			(existing.source === "built-in" || existing.source === "local")
 		) {
+			const merged = mergeRemoteMetadata(
+				existing,
+				entry as Parameters<typeof mergeRemoteMetadata>[1]
+			);
+			if (merged !== existing) {
+				registry.register(merged);
+			}
 			continue;
 		}
 		try {

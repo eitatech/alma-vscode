@@ -19,12 +19,17 @@ import type {
 	RemoteRegistryBinaryEntry,
 	RemoteRegistryEntry,
 } from "./acp-provider-registry";
+import {
+	resolveViaLoginShell,
+	runViaLoginShell,
+} from "./providers/login-shell-detector";
 import type { AcpProviderDescriptor, AcpProviderProbe } from "./types";
 
 const COMMAND_SPLIT_RE = /\s+/;
 const RELATIVE_PREFIX_RE = /^\.\//;
 const VERSION_FLAG_TIMEOUT_MS = 5000;
 const NPX_PACKAGE_NAME_RE = /(@[^/]+\/[^@]+)@.+/;
+const VERSION_RE = /(\d+\.\d+\.\d+[^\s]*)/;
 
 function archKeyFor(cpu: string): "aarch64" | "x86_64" | undefined {
 	if (cpu === "arm64" || cpu === "arm") {
@@ -93,6 +98,10 @@ export function selectPlatformBinary(
  * Build a runnable descriptor for a local catalog entry. The probe delegates
  * to {@link KnownAgentDetector.isInstalledAny} so the existing detection
  * pipeline (login shell PATH + npm-global lookups) drives availability.
+ *
+ * When the agent is installed, the probe also runs `<binary> --version`
+ * to detect the installed version so the UI can offer an update action
+ * when it differs from the registry's `latestVersion`.
  */
 export function createDescriptorFromKnownAgent(
 	entry: KnownAgentEntry,
@@ -117,21 +126,56 @@ export function createDescriptorFromKnownAgent(
 		authCommand: "",
 		source: "local",
 		description: entry.description,
-		probe: () => probeKnownAgent(entry.installChecks, detector),
+		probe: () => probeKnownAgent(entry.installChecks, detector, spawnCommand),
 	};
 }
 
 async function probeKnownAgent(
 	checks: readonly InstallCheckStrategy[],
-	detector: KnownAgentDetector
+	detector: KnownAgentDetector,
+	binaryName: string
 ): Promise<AcpProviderProbe> {
 	try {
 		const installed = await detector.isInstalledAny([...checks]);
+		if (!installed) {
+			return {
+				installed: false,
+				version: null,
+				authenticated: false,
+				acpSupported: false,
+				executablePath: null,
+			};
+		}
+
+		// Best-effort version detection. Try `<binary> --version` first,
+		// then `<binary> version`. Failure is non-fatal — the agent is
+		// still considered installed, just with an unknown version.
+		let version: string | null = null;
+		try {
+			const versionResult = await checkCLI(
+				`${binaryName} --version`,
+				VERSION_FLAG_TIMEOUT_MS
+			);
+			if (versionResult.installed && versionResult.version) {
+				version = versionResult.version;
+			} else {
+				const altResult = await checkCLI(
+					`${binaryName} version`,
+					VERSION_FLAG_TIMEOUT_MS
+				);
+				if (altResult.installed && altResult.version) {
+					version = altResult.version;
+				}
+			}
+		} catch {
+			// Version probe is best-effort — swallow errors.
+		}
+
 		return {
-			installed,
-			version: null,
-			authenticated: installed, // Local catalog has no first-class auth probe.
-			acpSupported: installed,
+			installed: true,
+			version,
+			authenticated: true, // Local catalog has no first-class auth probe.
+			acpSupported: true,
 			executablePath: null,
 		};
 	} catch (error) {
@@ -268,28 +312,11 @@ async function probeRemoteAgent(
 			}
 		}
 
-		// Binary / non-npx path: resolve the binary on PATH and ask for its
-		// version. For npx-only providers, this also catches cases where the
-		// binary is on PATH via a different package manager (e.g. bun, brew).
-		const executable = await locateCLIExecutable(
-			options.spawnCommand,
-			VERSION_FLAG_TIMEOUT_MS
-		);
-		if (executable) {
-			const version = await probeBinaryVersion(
-				options.spawnCommand,
-				options.spawnArgs
-			);
-			return {
-				installed: true,
-				version,
-				authenticated: false,
-				acpSupported: true,
-				executablePath: executable,
-				canRunViaNpx: options.canRunViaNpx,
-				npxPackage: options.npxPackage,
-				latestVersion: options.latestVersion ?? null,
-			};
+		// Binary / non-npx path: resolve the binary on PATH (extended +
+		// login shell) and ask for its version.
+		const binaryResult = await probeRemoteBinary(options);
+		if (binaryResult) {
+			return binaryResult;
 		}
 
 		return {
@@ -315,6 +342,56 @@ async function probeRemoteAgent(
 			error: error instanceof Error ? error.message : String(error),
 		};
 	}
+}
+
+/**
+ * Resolve a remote provider's binary on PATH (extended + login shell)
+ * and probe its version. Returns a fully-formed {@link AcpProviderProbe}
+ * when the binary is found, or `undefined` when it is not on PATH.
+ */
+async function probeRemoteBinary(
+	options: ProbeRemoteAgentOptions
+): Promise<AcpProviderProbe | undefined> {
+	let executable = await locateCLIExecutable(
+		options.spawnCommand,
+		VERSION_FLAG_TIMEOUT_MS
+	);
+	if (!executable) {
+		const shellPath = await resolveViaLoginShell(
+			options.spawnCommand,
+			VERSION_FLAG_TIMEOUT_MS
+		);
+		if (shellPath) {
+			executable = shellPath;
+		}
+	}
+	if (!executable) {
+		return;
+	}
+	let version = await probeBinaryVersion(
+		options.spawnCommand,
+		options.spawnArgs
+	);
+	if (!version) {
+		const shellResult = await runViaLoginShell(
+			`${options.spawnCommand} --version`,
+			VERSION_FLAG_TIMEOUT_MS
+		);
+		if (shellResult.success) {
+			const match = shellResult.output.match(VERSION_RE);
+			version = match ? match[1] : null;
+		}
+	}
+	return {
+		installed: true,
+		version,
+		authenticated: false,
+		acpSupported: true,
+		executablePath: executable,
+		canRunViaNpx: options.canRunViaNpx,
+		npxPackage: options.npxPackage,
+		latestVersion: options.latestVersion ?? null,
+	};
 }
 
 async function probeNpmGlobalPackageVersion(

@@ -2,7 +2,24 @@
  * AcpAgentInstaller unit tests.
  */
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Mock child_process so runShellCommand does not spawn real processes
+// (which would be slow and flaky in CI / machines without network).
+vi.mock("node:child_process", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("node:child_process")>();
+	const mockedExecFile = vi.fn(
+		(_cmd: string, _args: string[], _opts: unknown, cb: any) => {
+			cb(null, { stdout: "", stderr: "" });
+		}
+	) as unknown as typeof actual.execFile;
+	return {
+		...actual,
+		execFile: mockedExecFile,
+		default: { ...actual, execFile: mockedExecFile },
+	};
+});
+
 import { AcpAgentInstaller } from "../../../../src/services/acp/acp-agent-installer";
 import type { AcpProviderDescriptor } from "../../../../src/services/acp/types";
 

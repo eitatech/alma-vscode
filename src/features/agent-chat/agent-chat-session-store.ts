@@ -323,6 +323,7 @@ export class AgentChatSessionStore {
 			if (!file) {
 				return;
 			}
+			let mutated = false;
 			for (const update of updates) {
 				const idx = file.messages.findIndex((m) => m.id === update.id);
 				if (idx >= 0) {
@@ -330,10 +331,21 @@ export class AgentChatSessionStore {
 						...file.messages[idx],
 						...update.patch,
 					} as ChatMessage;
+					mutated = true;
 				}
+			}
+			if (!mutated) {
+				return;
 			}
 			file.updatedAt = this.now();
 			await this.persistTranscript(sessionId, file);
+			// Fire the manifest event so the view provider can detect
+			// transcript deltas (new messages AND updates to existing
+			// ones — e.g. streaming content growth, isTurnComplete
+			// flips, deliveryStatus changes). Without this, the webview
+			// never sees streaming agent content because `flushTranscriptDeltas`
+			// is only invoked from the `onDidChangeManifest` listener.
+			await this.touchManifestEntry(sessionId);
 		});
 	}
 

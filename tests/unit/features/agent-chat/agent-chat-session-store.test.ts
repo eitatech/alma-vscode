@@ -198,6 +198,45 @@ describe("AgentChatSessionStore", () => {
 			};
 			expect(transcript.messages.map((m) => m.sequence)).toEqual([0, 1, 2]);
 		});
+
+		it("updateMessages fires onDidChangeManifest so the view provider can detect transcript deltas", async () => {
+			const session = await store.createSession(baseCreateInput());
+			await store.appendMessages(session.id, [
+				makeUserMessage(session.id, 0, "hello"),
+			]);
+
+			const fired = vi.fn();
+			store.onDidChangeManifest(fired);
+
+			await store.updateMessages(session.id, [
+				{
+					id: (
+						memento._store.get(transcriptKeyFor(session.id)) as {
+							messages: ChatMessage[];
+						}
+					).messages[0].id,
+					patch: { content: "updated" } as Partial<ChatMessage>,
+				},
+			]);
+
+			expect(fired).toHaveBeenCalledTimes(1);
+		});
+
+		it("updateMessages does NOT fire onDidChangeManifest when no messages match", async () => {
+			const session = await store.createSession(baseCreateInput());
+
+			const fired = vi.fn();
+			store.onDidChangeManifest(fired);
+
+			await store.updateMessages(session.id, [
+				{
+					id: "nonexistent-id",
+					patch: { content: "updated" } as Partial<ChatMessage>,
+				},
+			]);
+
+			expect(fired).not.toHaveBeenCalled();
+		});
 	});
 
 	// ------------------------------------------------------------------

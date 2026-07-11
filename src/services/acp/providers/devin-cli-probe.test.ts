@@ -8,6 +8,14 @@ vi.mock("../../../utils/cli-detector", () => ({
 	getExtendedPath: vi.fn(() => process.env.PATH ?? ""),
 }));
 
+vi.mock("./login-shell-detector", () => ({
+	resolveViaLoginShell: vi.fn(() => Promise.resolve(null)),
+	runViaLoginShell: vi.fn(() =>
+		Promise.resolve({ success: false, output: "", error: "mocked" })
+	),
+	getExtendedPath: vi.fn(() => process.env.PATH ?? ""),
+}));
+
 const mockedCheckCLI = vi.mocked(checkCLI);
 const mockedLocate = vi.mocked(locateCLIExecutable);
 

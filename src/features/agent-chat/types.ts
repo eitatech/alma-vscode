@@ -300,7 +300,9 @@ export type SystemChatMessageKind =
 	| "worktree-cleaned"
 	| "read-only-notice"
 	| "ended-by-shutdown"
-	| "restored-from-persistence";
+	| "restored-from-persistence"
+	| "thinking-level-changed"
+	| "agent-role-changed";
 
 export interface SystemChatMessage extends ChatMessageBase {
 	role: "system";

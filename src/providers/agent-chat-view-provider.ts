@@ -817,6 +817,7 @@ export class AgentChatViewProvider
 			})
 		);
 		let mutated = false;
+		const installedProviderIds: string[] = [];
 		for (const outcome of results) {
 			if (outcome.status !== "fulfilled") {
 				continue;
@@ -837,6 +838,9 @@ export class AgentChatViewProvider
 				this.probeCache.set(id, next);
 				mutated = true;
 			}
+			if (probe.installed) {
+				installedProviderIds.push(id);
+			}
 		}
 		if (mutated && this.view) {
 			const catalog = buildAgentChatCatalog({
@@ -850,6 +854,26 @@ export class AgentChatViewProvider
 					modelsLoading: this.snapshotModelsLoading(),
 				},
 			}).catch(noop);
+		}
+		this.eagerlyProbeModels(installedProviderIds);
+	}
+
+	/**
+	 * Kick off model discovery probes for all installed providers so the
+	 * model dropdown reflects the agent's actual model list rather than
+	 * the static catalog. The model discovery service coalesces concurrent
+	 * calls and caches results, so this is safe even if the user clicks
+	 * a provider while the probes are in flight.
+	 */
+	private eagerlyProbeModels(providerIds: readonly string[]): void {
+		const discovery = this.options.modelDiscovery;
+		if (!discovery) {
+			return;
+		}
+		for (const providerId of providerIds) {
+			if (!discovery.peek(providerId)) {
+				this.triggerModelProbe(providerId, { invalidate: false });
+			}
 		}
 	}
 
@@ -966,6 +990,14 @@ class SidebarSessionBinding {
 	};
 	private readonly subscriptions: Disposable[] = [];
 	private readonly knownMessageIds = new Set<string>();
+	/**
+	 * Per-message signature snapshot used by {@link flushTranscriptDeltas}
+	 * to detect updates to already-known messages (streaming content
+	 * growth, `isTurnComplete` flips, `deliveryStatus` changes, …).
+	 * Keyed by message id; value is a compact string representation of
+	 * the mutable fields.
+	 */
+	private readonly messageSignatures = new Map<string, string>();
 	private lastLifecycleState: SessionLifecycleState;
 	private lastAvailableModelIds: string[] = [];
 	private lastCurrentModelId: string | undefined;
@@ -1086,6 +1118,7 @@ class SidebarSessionBinding {
 		const transcript = this.readTranscript(current.id);
 		for (const msg of transcript) {
 			this.knownMessageIds.add(msg.id);
+			this.messageSignatures.set(msg.id, messageSignature(msg));
 		}
 		const isReadOnly = current.source === "cloud";
 		const availableModels = current.availableModels ?? [];
@@ -1249,7 +1282,7 @@ class SidebarSessionBinding {
 		try {
 			await commands.executeCommand(command, { sessionId, [valueKey]: value });
 		} catch (err) {
-			this.options.outputChannel?.appendLine(
+			this.outputChannel?.appendLine(
 				`[AgentChatView] routeChange failed: ${err instanceof Error ? err.message : String(err)}`
 			);
 		}
@@ -1276,7 +1309,7 @@ class SidebarSessionBinding {
 				}
 			);
 		} catch (err) {
-			this.options.outputChannel?.appendLine(
+			this.outputChannel?.appendLine(
 				`[AgentChatView] routeChangeTarget failed: ${err instanceof Error ? err.message : String(err)}`
 			);
 		}
@@ -1348,6 +1381,10 @@ class SidebarSessionBinding {
 		}
 		await this.sendMessagesAppended([pendingMessage]);
 		this.knownMessageIds.add(pendingMessage.id);
+		this.messageSignatures.set(
+			pendingMessage.id,
+			messageSignature(pendingMessage)
+		);
 
 		if (!runner.submit) {
 			await this.sendMessagesUpdated([
@@ -1455,14 +1492,26 @@ class SidebarSessionBinding {
 	private async flushTranscriptDeltas(): Promise<void> {
 		const transcript = this.readTranscript(this.sessionId);
 		const fresh: ChatMessage[] = [];
+		const updated: Array<{ id: string; patch: Partial<ChatMessage> }> = [];
 		for (const msg of transcript) {
-			if (!this.knownMessageIds.has(msg.id)) {
+			const sig = messageSignature(msg);
+			if (this.knownMessageIds.has(msg.id)) {
+				const prev = this.messageSignatures.get(msg.id);
+				if (prev !== sig) {
+					this.messageSignatures.set(msg.id, sig);
+					updated.push({ id: msg.id, patch: msg });
+				}
+			} else {
 				this.knownMessageIds.add(msg.id);
+				this.messageSignatures.set(msg.id, sig);
 				fresh.push(msg);
 			}
 		}
 		if (fresh.length > 0) {
 			await this.sendMessagesAppended(fresh);
+		}
+		if (updated.length > 0) {
+			await this.sendMessagesUpdated(updated);
 		}
 	}
 
@@ -1535,6 +1584,35 @@ interface SidebarSessionListItem {
 
 /** Maximum length of the derived `title` field (characters). */
 const SESSION_TITLE_MAX_LENGTH = 60;
+
+/**
+ * Compute a compact signature for a {@link ChatMessage} covering the
+ * mutable fields the webview cares about (content, isTurnComplete,
+ * stopReason, deliveryStatus, rejectionReason, status, title, toolKind).
+ * Used by {@link SidebarSessionBinding.flushTranscriptDeltas} to detect
+ * updates to already-known messages so streaming content and
+ * turn-completion flips are forwarded to the webview.
+ */
+function messageSignature(msg: ChatMessage): string {
+	switch (msg.role) {
+		case "agent":
+			return `agent|${msg.content}|${msg.isTurnComplete}|${msg.stopReason ?? ""}`;
+		case "thought":
+			return `thought|${msg.content}|${msg.isTurnComplete}`;
+		case "user":
+			return `user|${msg.content}|${msg.deliveryStatus}|${msg.rejectionReason ?? ""}`;
+		case "tool":
+			return `tool|${msg.title ?? ""}|${msg.status}|${msg.toolKind ?? ""}|${JSON.stringify(msg.affectedFiles ?? [])}`;
+		case "plan":
+			return `plan|${msg.turnId}|${JSON.stringify(msg.entries)}`;
+		case "error":
+			return `error|${msg.content}|${msg.category}|${msg.retryable}`;
+		case "system":
+			return `system|${msg.content}|${msg.kind}`;
+		default:
+			return "unknown";
+	}
+}
 
 function executionTargetLabel(kind: "local" | "worktree" | "cloud"): string {
 	switch (kind) {

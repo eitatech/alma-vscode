@@ -11,6 +11,25 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 // (or how long they take to execute) on the machine running the tests.
 vi.mock("../../../src/utils/cli-detector", () => ({
 	checkCLI: vi.fn(async () => ({ installed: false, version: null })),
+	locateCLIExecutable: vi.fn(async () => null),
+}));
+vi.mock("../../../src/services/acp/providers/devin-cli-probe", () => ({
+	probeDevinCli: vi.fn(async () => ({
+		installed: false,
+		version: null,
+		authenticated: false,
+		acpSupported: false,
+		executablePath: null,
+	})),
+}));
+vi.mock("../../../src/services/acp/providers/gemini-cli-probe", () => ({
+	probeGeminiCli: vi.fn(async () => ({
+		installed: false,
+		version: null,
+		authenticated: false,
+		acpSupported: false,
+		executablePath: null,
+	})),
 }));
 
 import { WelcomeScreenProvider } from "../../../src/providers/welcome-screen-provider";

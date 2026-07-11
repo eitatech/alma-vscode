@@ -1,4 +1,4 @@
-import { Uri, type Webview } from "vscode";
+import { ColorThemeKind, Uri, window, type Webview } from "vscode";
 
 /**
  * Optional extra attributes serialized onto the `#root` element so pages can
@@ -26,6 +26,7 @@ export const getWebviewContent = (
 
 	const nonce = getNonce();
 	const dataAttrs = serializeDataAttrs(extraDataAttributes ?? {});
+	const themeKind = resolveThemeKind();
 
 	return `<!DOCTYPE html>
         <html lang="en" style="height: 100%;">
@@ -37,12 +38,39 @@ export const getWebviewContent = (
             <link href="${styleUri}" rel="stylesheet" />
             <title>GatomIA</title>
         </head>
-        <body style="height: 100%; margin: 0;">
+        <body data-vscode-theme-kind="${themeKind}" style="height: 100%; margin: 0;">
             <div id="root" data-page="${page}"${dataAttrs} style="height: 100%;"></div>
             <script type="module" nonce="${nonce}" src="${scriptUri}"></script>
         </body>
         </html>`;
 };
+
+/**
+ * Map the active VS Code color theme kind to the `data-vscode-theme-kind`
+ * attribute injected onto the webview `<body>`. CSS rules can then target
+ * `body[data-vscode-theme-kind~="dark"]` to adapt rendering (e.g. invert
+ * registry icons that ship as dark-on-transparent SVGs).
+ *
+ * Returns `"light"` as a safe fallback when the theme API is unavailable
+ * (e.g. in unit tests that stub the VS Code namespace).
+ */
+function resolveThemeKind(): string {
+	try {
+		const kind = window.activeColorTheme.kind;
+		switch (kind) {
+			case ColorThemeKind.Dark:
+				return "vscode-dark";
+			case ColorThemeKind.HighContrast:
+				return "vscode-high-contrast";
+			case ColorThemeKind.HighContrastLight:
+				return "vscode-high-contrast-light";
+			default:
+				return "vscode-light";
+		}
+	} catch {
+		return "vscode-light";
+	}
+}
 
 function serializeDataAttrs(attrs: WebviewDataAttributes): string {
 	const parts: string[] = [];

@@ -4,6 +4,33 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
+
+// Mock CLI detection and ACP probes so tests are deterministic and do
+// not spawn real shell processes (which would make them flaky under
+// parallel load and on machines without the CLIs installed).
+vi.mock("../../../src/utils/cli-detector", () => ({
+	checkCLI: vi.fn(async () => ({ installed: false, version: null })),
+	locateCLIExecutable: vi.fn(async () => null),
+}));
+vi.mock("../../../src/services/acp/providers/devin-cli-probe", () => ({
+	probeDevinCli: vi.fn(async () => ({
+		installed: false,
+		version: null,
+		authenticated: false,
+		acpSupported: false,
+		executablePath: null,
+	})),
+}));
+vi.mock("../../../src/services/acp/providers/gemini-cli-probe", () => ({
+	probeGeminiCli: vi.fn(async () => ({
+		installed: false,
+		version: null,
+		authenticated: false,
+		acpSupported: false,
+		executablePath: null,
+	})),
+}));
+
 import { DependencyChecker } from "../../../src/services/dependency-checker";
 // biome-ignore lint/performance/noNamespaceImport: needed for extensive vi.mocked() references
 import * as vscode from "vscode";
