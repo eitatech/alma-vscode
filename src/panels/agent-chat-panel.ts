@@ -271,6 +271,7 @@ export class AgentChatPanel {
 			return;
 		}
 		this.opened = false;
+		this.knownMessageIds.clear();
 		for (const d of this.disposables) {
 			try {
 				d.dispose();
@@ -491,6 +492,9 @@ export class AgentChatPanel {
 		content: string;
 		clientMessageId?: string;
 	}): Promise<void> {
+		if (payload.sessionId && payload.sessionId !== this.session.id) {
+			return;
+		}
 		const current =
 			(await this.store.getSession(this.session.id)) ?? this.session;
 		const userMessageId = payload.clientMessageId ?? randomUUID();

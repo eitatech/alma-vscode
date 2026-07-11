@@ -1118,6 +1118,12 @@ class SidebarSessionBinding {
 		const current =
 			(await this.store.getSession(this.sessionId)) ?? this.session;
 		const transcript = this.readTranscript(current.id);
+		// Reset tracking sets before repopulating so a rebind (e.g. after
+		// transcript archival or external mutation) does not retain stale
+		// IDs / signatures that would cause flushTranscriptDeltas to skip
+		// legitimate messages or send incorrect patches.
+		this.knownMessageIds.clear();
+		this.messageSignatures.clear();
 		for (const msg of transcript) {
 			this.knownMessageIds.add(msg.id);
 			this.messageSignatures.set(msg.id, messageSignature(msg));

@@ -13,7 +13,7 @@
  * @see specs/018-agent-chat-panel/contracts/agent-chat-panel-protocol.md
  */
 
-import { useCallback, useEffect, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { vscode } from "@/bridge/vscode";
 import type {
 	AgentChatCatalog,
@@ -281,8 +281,14 @@ function reducer(
 				messages: [],
 				availableModes: [],
 				availableModels: [],
+				availableTargets: [],
 				hasArchivedTranscript: false,
 				clearedReason: action.payload.reason,
+				pendingWrites: [],
+				modelsLoading: {},
+				availableCommands: [],
+				configOptions: [],
+				acpUsage: undefined,
 			};
 		case "catalog/loaded":
 			return {
@@ -558,6 +564,14 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 	const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
 	const activeSessionId = state.session?.id ?? initialSessionId;
 
+	// Ref mirror of `activeSessionId` so the message handler always reads
+	// the current value without re-subscribing on every session change.
+	// Re-subscribing caused a race where messages arriving during the
+	// unsubscribe/resubscribe window were dropped, and multiple
+	// `agent-chat/ready` messages were sent on each session switch.
+	const activeSessionIdRef = useRef(activeSessionId);
+	activeSessionIdRef.current = activeSessionId;
+
 	// Send ready + subscribe to incoming messages on mount.
 	useEffect(() => {
 		vscode.postMessage({
@@ -567,7 +581,7 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 
 		const handler = (event: MessageEvent): void => {
 			const action = translateIncoming(
-				activeSessionId,
+				activeSessionIdRef.current,
 				initialSessionId,
 				event.data
 			);
@@ -580,7 +594,7 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 		return () => {
 			window.removeEventListener("message", handler);
 		};
-	}, [initialSessionId, activeSessionId]);
+	}, [initialSessionId]);
 
 	const submit = useCallback(
 		(content: string, clientMessageId?: string) => {
