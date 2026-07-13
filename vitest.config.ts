@@ -16,9 +16,12 @@ export default defineConfig({
 		// `react` alias below actually intercepts its internal `import * as React
 		// from "react"` — otherwise `ui/node_modules/react` is loaded as a
 		// second React instance and hooks fail with "null.useReducer".
-		server: {
-			deps: {
-				inline: ["@tanstack/react-virtual"],
+		deps: {
+			optimizer: {
+				client: {
+					enabled: true,
+					include: ["@tanstack/react-virtual"],
+				},
 			},
 		},
 	},
