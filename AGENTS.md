@@ -339,6 +339,7 @@ All standard template variables available in hooks:
 - Verify bridge communication in extension logs
 
 ## Active Technologies
+
 - VS Code `workspaceState` API, key `gatomia.hooks.configurations` (existing, JSON array of `Hook[]`) (001-hooks-refactor)
 
 - TypeScript 5.3+ (strict) + VS Code Extension API, React 18, Spec Explorer stores, telemetry helpers in `src/features/spec/review-flow/telemetry.ts` (001-auto-review-transition)
@@ -361,17 +362,18 @@ All standard template variables available in hooks:
 2. **Run quality gates** (if code changed) - Tests, linters, builds
 3. **Update issue status** - Close finished work, update in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd sync
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
+```bash
+git pull --rebase
+bd sync
+git push
+git status  # MUST show "up to date with origin"
+```
 5. **Clean up** - Clear stashes, prune remote branches
 6. **Verify** - All changes committed AND pushed
 7. **Hand off** - Provide context for next session
 
 **CRITICAL RULES:**
+
 - Work is NOT complete until `git push` succeeds
 - NEVER stop before pushing - that leaves work stranded locally
 - NEVER say "ready to push when you are" - YOU must push
@@ -407,11 +409,11 @@ bd close <id>         # Complete work
 2. **Run quality gates** (if code changed) - Tests, linters, builds
 3. **Update issue status** - Close finished work, update in-progress items
 4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   bd dolt push
-   git push
-   git status  # MUST show "up to date with origin"
+```bash
+git pull --rebase
+bd dolt push
+git push
+git status  # MUST show "up to date with origin"
    ```
 5. **Clean up** - Clear stashes, prune remote branches
 6. **Verify** - All changes committed AND pushed
@@ -423,29 +425,6 @@ bd close <id>         # Complete work
 - NEVER say "ready to push when you are" - YOU must push
 - If push fails, resolve and retry until it succeeds
 <!-- END BEADS INTEGRATION -->
-
-
----
-
-# Reversa
-
-> Framework de Engenharia Reversa instalado neste projeto.
-
-## Como usar
-
-Digite `reversa` para ativar o Reversa e iniciar ou retomar a análise do projeto.
-
-## Comportamento ao ativar
-
-Quando o usuário digitar `reversa` sozinho em uma mensagem:
-
-1. Ative o skill `reversa` disponível em `.agents/skills/reversa/SKILL.md`
-2. Leia o SKILL.md na íntegra e siga exatamente as instruções do Reversa
-
-## Regra não-negociável
-
-Nunca apague, modifique ou sobrescreva arquivos pré-existentes do projeto legado.
-O Reversa escreve **apenas** em `.reversa/` e `_reversa_sdd/`.
 
 
 ---
