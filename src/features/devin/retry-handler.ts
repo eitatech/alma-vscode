@@ -8,6 +8,7 @@
  * @see specs/001-devin-integration/plan.md:L26
  */
 
+import { randomBytes } from "node:crypto";
 import {
 	MAX_RETRY_ATTEMPTS,
 	RETRY_BASE_DELAY_MS,
@@ -142,7 +143,12 @@ function calculateDelay(
 
 	const exponentialDelay = baseDelayMs * 2 ** (attempt - 1);
 	const cappedDelay = Math.min(exponentialDelay, maxDelayMs);
-	const jitter = Math.random() * cappedDelay * 0.1;
+	// Use crypto-based random for jitter to avoid weak pseudorandomness
+	// flagged by security scanners (S2245). The jitter only needs to be
+	// uniformly distributed in [0, cappedDelay * 0.1].
+	const jitterBytes = randomBytes(4);
+	const jitterRand = jitterBytes.readUInt32BE(0) / 0x1_00_00_00_00;
+	const jitter = jitterRand * cappedDelay * 0.1;
 
 	return Math.floor(cappedDelay + jitter);
 }

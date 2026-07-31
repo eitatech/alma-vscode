@@ -2,11 +2,14 @@ import { access } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { checkCLI, locateCLIExecutable } from "../../../utils/cli-detector";
+import { resolveViaLoginShell, runViaLoginShell } from "./login-shell-detector";
 import type { AcpProviderProbe } from "../types";
 
 const DEFAULT_TIMEOUT_MS = 5000;
 const GEMINI_ENV_VAR = "GEMINI_API_KEY";
 const GOOGLE_ENV_VAR = "GOOGLE_API_KEY";
+const WHITESPACE_SPLIT_RE = /\s/;
+const VERSION_RE = /(\d+\.\d+\.\d+[^\s]*)/;
 // Match the actual CLI flag forms only:
 //   - `--acp`              (current)
 //   - `--experimental-acp` (legacy)
@@ -16,11 +19,48 @@ const GOOGLE_ENV_VAR = "GOOGLE_API_KEY";
 const ACP_FLAG_PATTERN = /(?:^|\s)--(?:experimental-)?acp\b/im;
 
 /**
+ * Run a shell command, first trying the extended PATH via `checkCLI`,
+ * then falling back to the user's login shell so binaries installed via
+ * brew, bun, volta, mise, etc. are detected even when the Extension
+ * Host doesn't inherit the shell profile PATH.
+ */
+async function checkCLIWithShell(
+	command: string,
+	timeoutMs: number
+): Promise<{
+	installed: boolean;
+	version: string | null;
+	output?: string;
+	error?: string;
+}> {
+	const result = await checkCLI(command, timeoutMs);
+	if (result.installed) {
+		return result;
+	}
+	const binaryName = command.trim().split(WHITESPACE_SPLIT_RE)[0];
+	const resolvedPath = await resolveViaLoginShell(binaryName, timeoutMs);
+	if (!resolvedPath) {
+		return result;
+	}
+	const shellResult = await runViaLoginShell(command, timeoutMs);
+	if (!shellResult.success) {
+		return result;
+	}
+	const versionMatch = shellResult.output.match(VERSION_RE);
+	return {
+		installed: true,
+		version: versionMatch ? versionMatch[1] : result.version,
+		output: shellResult.output,
+	};
+}
+
+/**
  * Probe the Gemini CLI to determine whether GatomIA can route prompts to it
  * through the Agent Client Protocol.
  *
  * Detection logic:
- *   1. `gemini --version` must succeed.
+ *   1. `gemini --version` must succeed. Tries the extended PATH first,
+ *      then falls back to the user's login shell PATH.
  *   2. Authentication is considered OK when either `GEMINI_API_KEY` /
  *      `GOOGLE_API_KEY` env var is set, OR the OAuth credentials file created
  *      by `gemini auth login` (`~/.gemini/oauth_creds.json`) is readable.
@@ -32,7 +72,7 @@ export const probeGeminiCli = async (
 	timeoutMs: number = DEFAULT_TIMEOUT_MS
 ): Promise<AcpProviderProbe> => {
 	try {
-		const version = await checkCLI("gemini --version", timeoutMs);
+		const version = await checkCLIWithShell("gemini --version", timeoutMs);
 		if (!version.installed) {
 			return {
 				installed: false,
@@ -46,7 +86,7 @@ export const probeGeminiCli = async (
 
 		const [executablePath, help, oauthCredsOk] = await Promise.all([
 			locateCLIExecutable("gemini", timeoutMs),
-			checkCLI("gemini --help", timeoutMs),
+			checkCLIWithShell("gemini --help", timeoutMs),
 			hasOauthCreds(),
 		]);
 

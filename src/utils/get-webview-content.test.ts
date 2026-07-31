@@ -68,4 +68,13 @@ describe("get-webview-content", () => {
 		expect(cspMatch).not.toBeNull();
 		expect(cspNonceMatch?.[1]).toBe(cspMatch?.[1]);
 	});
+
+	// 5. Theme kind: Test that data-vscode-theme-kind is injected on <body>.
+	it("should inject data-vscode-theme-kind attribute on the body element", () => {
+		const html = getWebviewContent(mockWebview, mockExtensionUri, "test");
+		// In test environments `window.activeColorTheme` is stubbed, so
+		// the fallback ("vscode-light") is expected. The important
+		// assertion is that the attribute is present at all.
+		expect(html).toMatch(/data-vscode-theme-kind="vscode-(light|dark)"/);
+	});
 });

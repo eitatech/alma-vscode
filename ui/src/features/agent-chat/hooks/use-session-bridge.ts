@@ -13,11 +13,13 @@
  * @see specs/018-agent-chat-panel/contracts/agent-chat-panel-protocol.md
  */
 
-import { useCallback, useEffect, useMemo, useReducer } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { vscode } from "@/bridge/vscode";
 import type {
 	AgentChatCatalog,
 	AgentChatSessionView,
+	AcpUsageSnapshot,
+	AvailableAgentCommand,
 	ChatMessage,
 	ExecutionTarget,
 	ExecutionTargetOption,
@@ -26,6 +28,7 @@ import type {
 	NewSessionRequest,
 	PendingFileWriteSummary,
 	PermissionDefaultMode,
+	SessionConfigOptionDescriptor,
 	SidebarSessionListItem,
 	UserChatMessage,
 } from "@/features/agent-chat/types";
@@ -68,6 +71,9 @@ export interface AgentChatBridgeState {
 	 * a loading placeholder.
 	 */
 	readonly modelsLoading: Readonly<Record<string, boolean>>;
+	readonly availableCommands: readonly AvailableAgentCommand[];
+	readonly configOptions: readonly SessionConfigOptionDescriptor[];
+	readonly acpUsage: AcpUsageSnapshot | undefined;
 }
 
 export interface AgentChatBridge {
@@ -87,6 +93,7 @@ export interface AgentChatBridge {
 	 * the host can forward it to the running agent.
 	 */
 	changeAgentRole(agentRoleId: string): void;
+	changeConfigOption(configId: string, value: string): void;
 	changeTarget(target: ExecutionTarget): void;
 	/** Sidebar-only: switch the bound session via the host. */
 	switchSession(sessionId: string): void;
@@ -112,6 +119,14 @@ export interface AgentChatBridge {
 	 * session's provider.
 	 */
 	probeModels(providerId: string): void;
+	/**
+	 * Ask the host to install `providerId` from the ACP Registry.
+	 */
+	installProvider(providerId: string): void;
+	/**
+	 * Ask the host to update `providerId` to the latest registry version.
+	 */
+	updateProvider(providerId: string): void;
 }
 
 // ============================================================================
@@ -132,6 +147,9 @@ const INITIAL_STATE: AgentChatBridgeState = {
 	pendingWrites: [],
 	permissionDefault: undefined,
 	modelsLoading: {},
+	availableCommands: [],
+	configOptions: [],
+	acpUsage: undefined,
 };
 
 type BridgeAction =
@@ -179,6 +197,16 @@ type BridgeAction =
 			};
 	  }
 	| {
+			type: "session/metadata-changed";
+			payload: {
+				selectedModeId?: string;
+				availableCommands: AvailableAgentCommand[];
+				configOptions: SessionConfigOptionDescriptor[];
+				acpUsage?: AcpUsageSnapshot;
+				acpSessionTitle?: string;
+			};
+	  }
+	| {
 			type: "sessions/list-changed";
 			payload: { sessions: SidebarSessionListItem[] };
 	  }
@@ -207,6 +235,9 @@ function reducer(
 				availableTargets: [...action.payload.availableTargets],
 				hasArchivedTranscript: action.payload.hasArchivedTranscript,
 				clearedReason: undefined,
+				availableCommands: action.payload.session.availableCommands ?? [],
+				configOptions: action.payload.session.configOptions ?? [],
+				acpUsage: action.payload.session.acpUsage,
 			};
 		case "messages/appended": {
 			const seen = new Set(state.messages.map((m) => m.id));
@@ -250,8 +281,14 @@ function reducer(
 				messages: [],
 				availableModes: [],
 				availableModels: [],
+				availableTargets: [],
 				hasArchivedTranscript: false,
 				clearedReason: action.payload.reason,
+				pendingWrites: [],
+				modelsLoading: {},
+				availableCommands: [],
+				configOptions: [],
+				acpUsage: undefined,
 			};
 		case "catalog/loaded":
 			return {
@@ -272,6 +309,25 @@ function reducer(
 					selectedModelId: action.payload.currentModelId,
 				},
 				availableModels: action.payload.availableModels,
+			};
+		}
+		case "session/metadata-changed": {
+			if (!state.session) {
+				return state;
+			}
+			return {
+				...state,
+				availableCommands: action.payload.availableCommands,
+				configOptions: action.payload.configOptions,
+				acpUsage: action.payload.acpUsage,
+				session: {
+					...state.session,
+					selectedModeId: action.payload.selectedModeId,
+					availableCommands: action.payload.availableCommands,
+					configOptions: action.payload.configOptions,
+					acpUsage: action.payload.acpUsage,
+					acpSessionTitle: action.payload.acpSessionTitle,
+				},
 			};
 		}
 		case "sessions/list-changed":
@@ -406,6 +462,29 @@ const INCOMING_HANDLERS: Record<
 			},
 		};
 	},
+	"agent-chat/session/metadata-changed": (ctx) => {
+		const payload = ctx.payload as {
+			sessionId: string;
+			selectedModeId?: string;
+			availableCommands?: AvailableAgentCommand[];
+			configOptions?: SessionConfigOptionDescriptor[];
+			acpUsage?: AcpUsageSnapshot;
+			acpSessionTitle?: string;
+		};
+		if (ctx.activeSessionId && payload.sessionId !== ctx.activeSessionId) {
+			return;
+		}
+		return {
+			type: "session/metadata-changed",
+			payload: {
+				selectedModeId: payload.selectedModeId,
+				availableCommands: payload.availableCommands ?? [],
+				configOptions: payload.configOptions ?? [],
+				acpUsage: payload.acpUsage,
+				acpSessionTitle: payload.acpSessionTitle,
+			},
+		};
+	},
 	"agent-chat/sessions/list-changed": (ctx) => ({
 		type: "sessions/list-changed",
 		payload: ctx.payload as { sessions: SidebarSessionListItem[] },
@@ -455,6 +534,10 @@ function applyPatch(
 		}
 		case "agent":
 			return { ...message, ...(patch as Partial<typeof message>) };
+		case "thought":
+			return { ...message, ...(patch as Partial<typeof message>) };
+		case "plan":
+			return { ...message, ...(patch as Partial<typeof message>) };
 		case "system":
 			return { ...message, ...(patch as Partial<typeof message>) };
 		case "tool":
@@ -481,6 +564,14 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 	const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
 	const activeSessionId = state.session?.id ?? initialSessionId;
 
+	// Ref mirror of `activeSessionId` so the message handler always reads
+	// the current value without re-subscribing on every session change.
+	// Re-subscribing caused a race where messages arriving during the
+	// unsubscribe/resubscribe window were dropped, and multiple
+	// `agent-chat/ready` messages were sent on each session switch.
+	const activeSessionIdRef = useRef(activeSessionId);
+	activeSessionIdRef.current = activeSessionId;
+
 	// Send ready + subscribe to incoming messages on mount.
 	useEffect(() => {
 		vscode.postMessage({
@@ -490,7 +581,7 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 
 		const handler = (event: MessageEvent): void => {
 			const action = translateIncoming(
-				activeSessionId,
+				activeSessionIdRef.current,
 				initialSessionId,
 				event.data
 			);
@@ -503,7 +594,7 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 		return () => {
 			window.removeEventListener("message", handler);
 		};
-	}, [initialSessionId, activeSessionId]);
+	}, [initialSessionId]);
 
 	const submit = useCallback(
 		(content: string, clientMessageId?: string) => {
@@ -594,6 +685,19 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 		[activeSessionId]
 	);
 
+	const changeConfigOption = useCallback(
+		(configId: string, value: string) => {
+			if (!activeSessionId) {
+				return;
+			}
+			vscode.postMessage({
+				type: "agent-chat/control/change-config-option",
+				payload: { sessionId: activeSessionId, configId, value },
+			});
+		},
+		[activeSessionId]
+	);
+
 	const changeTarget = useCallback(
 		(target: ExecutionTarget) => {
 			if (!activeSessionId) {
@@ -673,6 +777,26 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 		});
 	}, []);
 
+	const installProvider = useCallback((providerId: string) => {
+		if (!providerId) {
+			return;
+		}
+		vscode.postMessage({
+			type: "agent-chat/control/install-provider",
+			payload: { providerId },
+		});
+	}, []);
+
+	const updateProvider = useCallback((providerId: string) => {
+		if (!providerId) {
+			return;
+		}
+		vscode.postMessage({
+			type: "agent-chat/control/update-provider",
+			payload: { providerId },
+		});
+	}, []);
+
 	return useMemo<AgentChatBridge>(
 		() => ({
 			state,
@@ -683,6 +807,7 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 			changeModel,
 			changeThinkingLevel,
 			changeAgentRole,
+			changeConfigOption,
 			changeTarget,
 			switchSession,
 			startNewSession,
@@ -693,6 +818,8 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 			rejectPendingWrite,
 			changePermissionDefault,
 			probeModels,
+			installProvider,
+			updateProvider,
 		}),
 		[
 			state,
@@ -703,6 +830,7 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 			changeModel,
 			changeThinkingLevel,
 			changeAgentRole,
+			changeConfigOption,
 			changeTarget,
 			switchSession,
 			startNewSession,
@@ -713,6 +841,8 @@ export function useSessionBridge(initialSessionId?: string): AgentChatBridge {
 			rejectPendingWrite,
 			changePermissionDefault,
 			probeModels,
+			installProvider,
+			updateProvider,
 		]
 	);
 }

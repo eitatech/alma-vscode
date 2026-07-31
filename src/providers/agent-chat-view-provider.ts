@@ -45,6 +45,7 @@ import {
 	window,
 	workspace,
 } from "vscode";
+import { AGENT_CHAT_COMMANDS } from "../commands/agent-chat-commands";
 import type { PendingWriteSnapshot } from "../features/agent-chat/acp-chat-runner";
 import type { AgentChatRegistry } from "../features/agent-chat/agent-chat-registry";
 import type { AgentChatSessionStore } from "../features/agent-chat/agent-chat-session-store";
@@ -72,6 +73,7 @@ import {
 	type AgentChatCatalogSources,
 	type AgentChatProviderOption,
 } from "../features/agent-chat/agent-chat-catalog";
+import { AcpAgentInstaller } from "../services/acp/acp-agent-installer";
 import { getWebviewContent } from "../utils/get-webview-content";
 
 // ---------------------------------------------------------------------------
@@ -161,14 +163,23 @@ export class AgentChatViewProvider
 	private readonly disposables: Disposable[] = [];
 	private binding: SidebarSessionBinding | undefined;
 	private pendingFocusSessionId: string | undefined;
+	private readonly installer: AcpAgentInstaller;
 	/**
 	 * Cache of the most recent {@link AcpProviderDescriptor.probe} result
 	 * per provider id. Populated asynchronously by `refreshProbes()` and
 	 * fed into {@link buildAgentChatCatalog} so the picker can mark
-	 * locally-installed providers as `installed` and locally-missing
-	 * known agents as `install-required` regardless of `descriptor.source`.
+	 * locally-installed providers as `installed`, missing providers as
+	 * `install-required`, and out-of-date providers as `update-available`
+	 * regardless of `descriptor.source`.
 	 */
-	private readonly probeCache: Map<string, { installed: boolean }> = new Map();
+	private readonly probeCache: Map<
+		string,
+		{
+			installed: boolean;
+			version?: string | null;
+			latestVersion?: string | null;
+		}
+	> = new Map();
 	private probeRefreshInFlight: Promise<void> | undefined;
 
 	/** Per-provider in-flight probe markers, surfaced to the webview via `catalog/loaded`. */
@@ -176,6 +187,9 @@ export class AgentChatViewProvider
 
 	constructor(options: AgentChatViewProviderOptions) {
 		this.options = options;
+		this.installer = new AcpAgentInstaller({
+			outputChannel: options.outputChannel,
+		});
 
 		// Whenever the registry mutates we rebroadcast the session list so
 		// the header dropdown stays in sync without polling.
@@ -473,6 +487,24 @@ export class AgentChatViewProvider
 				}
 				return;
 			}
+			case "agent-chat/control/install-provider": {
+				const installProviderId = (
+					msg.payload as { providerId?: string } | undefined
+				)?.providerId;
+				if (installProviderId) {
+					await this.handleInstallProvider(installProviderId, "install");
+				}
+				return;
+			}
+			case "agent-chat/control/update-provider": {
+				const updateProviderId = (
+					msg.payload as { providerId?: string } | undefined
+				)?.providerId;
+				if (updateProviderId) {
+					await this.handleInstallProvider(updateProviderId, "update");
+				}
+				return;
+			}
 			default:
 				if (this.binding) {
 					await this.binding.handleWebviewMessage(msg);
@@ -549,6 +581,51 @@ export class AgentChatViewProvider
 		}
 	}
 
+	/**
+	 * Installs or updates the requested provider. The operation is
+	 * delegated to {@link AcpAgentInstaller}; on success the probe cache
+	 * is invalidated and re-probed so the catalog reflects the new state.
+	 */
+	private async handleInstallProvider(
+		providerId: string,
+		action: "install" | "update"
+	): Promise<void> {
+		const descriptor =
+			this.options.catalogSources.acpProviderRegistry?.get(providerId);
+		if (!descriptor) {
+			window.showErrorMessage(`Unknown provider: ${providerId}`);
+			return;
+		}
+
+		await this.postMessage({
+			type: "agent-chat/provider/install-started",
+			payload: { providerId, action },
+		}).catch(noop);
+
+		const result =
+			action === "install"
+				? await this.installer.install(descriptor)
+				: await this.installer.update(descriptor);
+
+		if (result.success) {
+			window.showInformationMessage(result.message);
+			this.probeCache.delete(providerId);
+			this.scheduleProbeRefresh();
+		} else {
+			window.showErrorMessage(result.message);
+		}
+
+		await this.postMessage({
+			type: "agent-chat/provider/install-finished",
+			payload: {
+				providerId,
+				action,
+				success: result.success,
+				message: result.message,
+			},
+		}).catch(noop);
+	}
+
 	// ------------------------------------------------------------------
 	// Binding
 	// ------------------------------------------------------------------
@@ -583,6 +660,8 @@ export class AgentChatViewProvider
 			registry: this.options.registry,
 			postMessage: (m) => this.postMessage(m),
 			outputChannel: this.options.outputChannel,
+			acpProviderRegistry:
+				this.options.catalogSources.acpProviderRegistry ?? undefined,
 		});
 		await this.binding.sendSessionLoaded();
 		logTelemetry(AGENT_CHAT_TELEMETRY_EVENTS.PANEL_OPENED, {
@@ -617,7 +696,7 @@ export class AgentChatViewProvider
 				agentId: provider.id,
 				agentDisplayName: provider.displayName,
 				agentCommand: "",
-				mode: payload.modelId,
+				modelId: payload.modelId,
 				thinkingLevelId: payload.thinkingLevelId,
 				agentRoleId: payload.agentRoleId,
 				taskInstruction: composePromptWithAgentFile(
@@ -734,19 +813,33 @@ export class AgentChatViewProvider
 		const results = await Promise.allSettled(
 			descriptors.map(async (descriptor) => {
 				const probe = await descriptor.probe();
-				return { id: descriptor.id, installed: probe.installed };
+				return { id: descriptor.id, probe };
 			})
 		);
 		let mutated = false;
+		const installedProviderIds: string[] = [];
 		for (const outcome of results) {
 			if (outcome.status !== "fulfilled") {
 				continue;
 			}
-			const { id, installed } = outcome.value;
+			const { id, probe } = outcome.value;
 			const previous = this.probeCache.get(id);
-			if (!previous || previous.installed !== installed) {
-				this.probeCache.set(id, { installed });
+			const next = {
+				installed: probe.installed,
+				version: probe.version,
+				latestVersion: probe.latestVersion,
+			};
+			if (
+				!previous ||
+				previous.installed !== next.installed ||
+				previous.version !== next.version ||
+				previous.latestVersion !== next.latestVersion
+			) {
+				this.probeCache.set(id, next);
 				mutated = true;
+			}
+			if (probe.installed) {
+				installedProviderIds.push(id);
 			}
 		}
 		if (mutated && this.view) {
@@ -756,8 +849,31 @@ export class AgentChatViewProvider
 			});
 			await this.postMessage({
 				type: "agent-chat/catalog/loaded",
-				payload: { catalog },
+				payload: {
+					catalog,
+					modelsLoading: this.snapshotModelsLoading(),
+				},
 			}).catch(noop);
+		}
+		this.eagerlyProbeModels(installedProviderIds);
+	}
+
+	/**
+	 * Kick off model discovery probes for all installed providers so the
+	 * model dropdown reflects the agent's actual model list rather than
+	 * the static catalog. The model discovery service coalesces concurrent
+	 * calls and caches results, so this is safe even if the user clicks
+	 * a provider while the probes are in flight.
+	 */
+	private eagerlyProbeModels(providerIds: readonly string[]): void {
+		const discovery = this.options.modelDiscovery;
+		if (!discovery) {
+			return;
+		}
+		for (const providerId of providerIds) {
+			if (!discovery.peek(providerId)) {
+				this.triggerModelProbe(providerId, { invalidate: false });
+			}
 		}
 	}
 
@@ -853,6 +969,13 @@ interface SidebarSessionBindingOptions {
 	readonly registry: AgentChatRegistry;
 	readonly postMessage: (message: unknown) => Promise<void>;
 	readonly outputChannel?: { appendLine(value: string): void };
+	/**
+	 * Optional ACP provider registry used to look up the provider
+	 * descriptor's `iconUrl` for the session view payload.
+	 */
+	readonly acpProviderRegistry?: {
+		get(id: string): { iconUrl?: string } | undefined;
+	};
 }
 
 class SidebarSessionBinding {
@@ -862,11 +985,23 @@ class SidebarSessionBinding {
 	private readonly registry: AgentChatRegistry;
 	private readonly postMessage: (message: unknown) => Promise<void>;
 	private readonly outputChannel?: { appendLine(value: string): void };
+	private readonly acpProviderRegistry?: {
+		get(id: string): { iconUrl?: string } | undefined;
+	};
 	private readonly subscriptions: Disposable[] = [];
 	private readonly knownMessageIds = new Set<string>();
+	/**
+	 * Per-message signature snapshot used by {@link flushTranscriptDeltas}
+	 * to detect updates to already-known messages (streaming content
+	 * growth, `isTurnComplete` flips, `deliveryStatus` changes, …).
+	 * Keyed by message id; value is a compact string representation of
+	 * the mutable fields.
+	 */
+	private readonly messageSignatures = new Map<string, string>();
 	private lastLifecycleState: SessionLifecycleState;
 	private lastAvailableModelIds: string[] = [];
 	private lastCurrentModelId: string | undefined;
+	private lastMetadataSignature: string;
 	private disposed = false;
 
 	constructor(options: SidebarSessionBindingOptions) {
@@ -876,12 +1011,14 @@ class SidebarSessionBinding {
 		this.registry = options.registry;
 		this.postMessage = options.postMessage;
 		this.outputChannel = options.outputChannel;
+		this.acpProviderRegistry = options.acpProviderRegistry;
 		this.lastLifecycleState = options.session.lifecycleState;
 		this.lastAvailableModelIds = (options.session.availableModels ?? []).map(
 			(m) => m.id
 		);
 		this.lastCurrentModelId =
 			options.session.currentModelId ?? options.session.selectedModelId;
+		this.lastMetadataSignature = sessionMetadataSignature(options.session);
 
 		this.subscriptions.push(
 			this.store.onDidChangeManifest(() => {
@@ -981,12 +1118,21 @@ class SidebarSessionBinding {
 		const current =
 			(await this.store.getSession(this.sessionId)) ?? this.session;
 		const transcript = this.readTranscript(current.id);
+		// Reset tracking sets before repopulating so a rebind (e.g. after
+		// transcript archival or external mutation) does not retain stale
+		// IDs / signatures that would cause flushTranscriptDeltas to skip
+		// legitimate messages or send incorrect patches.
+		this.knownMessageIds.clear();
+		this.messageSignatures.clear();
 		for (const msg of transcript) {
 			this.knownMessageIds.add(msg.id);
+			this.messageSignatures.set(msg.id, messageSignature(msg));
 		}
 		const isReadOnly = current.source === "cloud";
 		const availableModels = current.availableModels ?? [];
 		const currentModelId = current.currentModelId ?? current.selectedModelId;
+		const providerDescriptor = this.acpProviderRegistry?.get(current.agentId);
+		const iconUrl = providerDescriptor?.iconUrl;
 		// Thinking levels & agent roles ride alongside the model fields:
 		// the runner persists them through the store, the view-provider
 		// projects them here, and the webview chips light up only when
@@ -1013,6 +1159,10 @@ class SidebarSessionBinding {
 					selectedAgentRoleId: current.selectedAgentRoleId,
 					availableThinkingLevels,
 					availableAgentRoles,
+					availableCommands: current.availableCommands ?? [],
+					configOptions: current.configOptions ?? [],
+					acpUsage: current.acpUsage,
+					acpSessionTitle: current.acpSessionTitle,
 					executionTarget: {
 						kind: current.executionTarget.kind,
 						label: executionTargetLabel(current.executionTarget.kind),
@@ -1034,6 +1184,7 @@ class SidebarSessionBinding {
 								externalUrl: current.cloud.externalUrl,
 							}
 						: undefined,
+					iconUrl,
 				},
 				messages: transcript,
 				availableModes: [],
@@ -1068,6 +1219,56 @@ class SidebarSessionBinding {
 			case "agent-chat/control/retry":
 				await this.routeToRunner("retry");
 				return;
+			case "agent-chat/control/change-mode":
+				await this.routeChange(
+					AGENT_CHAT_COMMANDS.CHANGE_MODE,
+					message.payload as { sessionId?: string; modeId?: string },
+					"modeId"
+				);
+				return;
+			case "agent-chat/control/change-model":
+				await this.routeChange(
+					AGENT_CHAT_COMMANDS.CHANGE_MODEL,
+					message.payload as { sessionId?: string; modelId?: string },
+					"modelId"
+				);
+				return;
+			case "agent-chat/control/change-thinking-level":
+				await this.routeChange(
+					AGENT_CHAT_COMMANDS.CHANGE_THINKING_LEVEL,
+					message.payload as {
+						sessionId?: string;
+						thinkingLevelId?: string;
+					},
+					"thinkingLevelId"
+				);
+				return;
+			case "agent-chat/control/change-agent-role":
+				await this.routeChange(
+					AGENT_CHAT_COMMANDS.CHANGE_AGENT_ROLE,
+					message.payload as { sessionId?: string; agentRoleId?: string },
+					"agentRoleId"
+				);
+				return;
+			case "agent-chat/control/change-config-option": {
+				const payload = message.payload as {
+					configId?: string;
+					value?: string;
+				};
+				const runner = this.registry.getRunner(this.sessionId);
+				if (payload.configId && payload.value && runner?.changeConfigOption) {
+					await runner.changeConfigOption(payload.configId, payload.value);
+				}
+				return;
+			}
+			case "agent-chat/control/change-target":
+				await this.routeChangeTarget(
+					message.payload as {
+						sessionId?: string;
+						target?: { kind?: string };
+					}
+				);
+				return;
 			case "agent-chat/pending-writes/accept-all":
 				this.flushPendingWrites({ kind: "accept-all" });
 				return;
@@ -1088,6 +1289,52 @@ class SidebarSessionBinding {
 				return;
 			default:
 				return;
+		}
+	}
+
+	private async routeChange(
+		command: string,
+		payload: { sessionId?: string; [key: string]: unknown },
+		valueKey: string
+	): Promise<void> {
+		const sessionId = payload.sessionId ?? this.sessionId;
+		const value = payload[valueKey];
+		if (!sessionId || typeof value !== "string" || value.length === 0) {
+			return;
+		}
+		try {
+			await commands.executeCommand(command, { sessionId, [valueKey]: value });
+		} catch (err) {
+			this.outputChannel?.appendLine(
+				`[AgentChatView] routeChange failed: ${err instanceof Error ? err.message : String(err)}`
+			);
+		}
+	}
+
+	private async routeChangeTarget(payload: {
+		sessionId?: string;
+		target?: { kind?: string };
+	}): Promise<void> {
+		const sessionId = payload.sessionId ?? this.sessionId;
+		const kind = payload.target?.kind;
+		if (
+			!sessionId ||
+			(kind !== "local" && kind !== "worktree" && kind !== "cloud")
+		) {
+			return;
+		}
+		try {
+			await commands.executeCommand(
+				AGENT_CHAT_COMMANDS.CHANGE_EXECUTION_TARGET,
+				{
+					sessionId,
+					target: { kind },
+				}
+			);
+		} catch (err) {
+			this.outputChannel?.appendLine(
+				`[AgentChatView] routeChangeTarget failed: ${err instanceof Error ? err.message : String(err)}`
+			);
 		}
 	}
 
@@ -1157,6 +1404,10 @@ class SidebarSessionBinding {
 		}
 		await this.sendMessagesAppended([pendingMessage]);
 		this.knownMessageIds.add(pendingMessage.id);
+		this.messageSignatures.set(
+			pendingMessage.id,
+			messageSignature(pendingMessage)
+		);
 
 		if (!runner.submit) {
 			await this.sendMessagesUpdated([
@@ -1231,7 +1482,29 @@ class SidebarSessionBinding {
 			});
 		}
 		await this.maybePushModelsChanged(current);
+		await this.maybePushMetadataChanged(current);
 		await this.flushTranscriptDeltas();
+	}
+
+	private async maybePushMetadataChanged(
+		current: AgentChatSession
+	): Promise<void> {
+		const signature = sessionMetadataSignature(current);
+		if (signature === this.lastMetadataSignature) {
+			return;
+		}
+		this.lastMetadataSignature = signature;
+		await this.postMessage({
+			type: "agent-chat/session/metadata-changed",
+			payload: {
+				sessionId: this.sessionId,
+				selectedModeId: current.selectedModeId,
+				availableCommands: current.availableCommands ?? [],
+				configOptions: current.configOptions ?? [],
+				acpUsage: current.acpUsage,
+				acpSessionTitle: current.acpSessionTitle,
+			},
+		});
 	}
 
 	/**
@@ -1264,14 +1537,26 @@ class SidebarSessionBinding {
 	private async flushTranscriptDeltas(): Promise<void> {
 		const transcript = this.readTranscript(this.sessionId);
 		const fresh: ChatMessage[] = [];
+		const updated: Array<{ id: string; patch: Partial<ChatMessage> }> = [];
 		for (const msg of transcript) {
-			if (!this.knownMessageIds.has(msg.id)) {
+			const sig = messageSignature(msg);
+			if (this.knownMessageIds.has(msg.id)) {
+				const prev = this.messageSignatures.get(msg.id);
+				if (prev !== sig) {
+					this.messageSignatures.set(msg.id, sig);
+					updated.push({ id: msg.id, patch: msg });
+				}
+			} else {
 				this.knownMessageIds.add(msg.id);
+				this.messageSignatures.set(msg.id, sig);
 				fresh.push(msg);
 			}
 		}
 		if (fresh.length > 0) {
 			await this.sendMessagesAppended(fresh);
+		}
+		if (updated.length > 0) {
+			await this.sendMessagesUpdated(updated);
 		}
 	}
 
@@ -1344,6 +1629,45 @@ interface SidebarSessionListItem {
 
 /** Maximum length of the derived `title` field (characters). */
 const SESSION_TITLE_MAX_LENGTH = 60;
+
+/**
+ * Compute a compact signature for a {@link ChatMessage} covering the
+ * mutable fields the webview cares about (content, isTurnComplete,
+ * stopReason, deliveryStatus, rejectionReason, status, title, toolKind).
+ * Used by {@link SidebarSessionBinding.flushTranscriptDeltas} to detect
+ * updates to already-known messages so streaming content and
+ * turn-completion flips are forwarded to the webview.
+ */
+function messageSignature(msg: ChatMessage): string {
+	switch (msg.role) {
+		case "agent":
+			return `agent|${msg.content}|${msg.isTurnComplete}|${msg.stopReason ?? ""}`;
+		case "thought":
+			return `thought|${msg.content}|${msg.isTurnComplete}`;
+		case "user":
+			return `user|${msg.content}|${msg.deliveryStatus}|${msg.rejectionReason ?? ""}`;
+		case "tool":
+			return `tool|${msg.title ?? ""}|${msg.status}|${msg.toolKind ?? ""}|${msg.detail ?? ""}|${JSON.stringify(msg.affectedFiles ?? [])}`;
+		case "plan":
+			return `plan|${msg.turnId}|${JSON.stringify(msg.entries)}`;
+		case "error":
+			return `error|${msg.content}|${msg.category}|${msg.retryable}`;
+		case "system":
+			return `system|${msg.content}|${msg.kind}`;
+		default:
+			return "unknown";
+	}
+}
+
+function sessionMetadataSignature(session: AgentChatSession): string {
+	return JSON.stringify({
+		selectedModeId: session.selectedModeId,
+		availableCommands: session.availableCommands ?? [],
+		configOptions: session.configOptions ?? [],
+		acpUsage: session.acpUsage,
+		acpSessionTitle: session.acpSessionTitle,
+	});
+}
 
 function executionTargetLabel(kind: "local" | "worktree" | "cloud"): string {
 	switch (kind) {

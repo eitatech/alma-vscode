@@ -72,6 +72,34 @@ export interface AgentRoleDescriptor {
 	description?: string;
 }
 
+export interface AvailableAgentCommand {
+	name: string;
+	description?: string;
+	input?: { hint?: string };
+}
+
+export interface SessionConfigValueDescriptor {
+	value: string;
+	name: string;
+	description?: string;
+	group?: string;
+}
+
+export interface SessionConfigOptionDescriptor {
+	id: string;
+	name: string;
+	description?: string;
+	category?: string;
+	currentValue: string;
+	values: readonly SessionConfigValueDescriptor[];
+}
+
+export interface AcpUsageSnapshot {
+	used?: number;
+	size?: number;
+	cost?: { amount: number; currency: string };
+}
+
 export type ResolvedCapabilities =
 	| {
 			source: "agent";
@@ -245,6 +273,7 @@ export interface ToolCallChatMessage extends ChatMessageBase {
 	 * a plain title row.
 	 */
 	affectedFiles?: readonly ToolCallAffectedFile[];
+	detail?: string;
 }
 
 export type ErrorChatMessageCategory =
@@ -335,6 +364,16 @@ export interface AgentChatSessionView {
 		providerDisplayName: string;
 		externalUrl?: string;
 	};
+	/**
+	 * Optional icon URL from the remote registry, used to render the
+	 * provider chip logo instead of a codicon approximation when
+	 * available.
+	 */
+	iconUrl?: string;
+	availableCommands?: AvailableAgentCommand[];
+	configOptions?: SessionConfigOptionDescriptor[];
+	acpUsage?: AcpUsageSnapshot;
+	acpSessionTitle?: string;
 }
 
 // ============================================================================
@@ -344,7 +383,8 @@ export interface AgentChatSessionView {
 export type ProviderAvailability =
 	| "installed"
 	| "available-via-npx"
-	| "install-required";
+	| "install-required"
+	| "update-available";
 
 export interface AgentChatProviderOption {
 	id: string;
@@ -355,6 +395,16 @@ export interface AgentChatProviderOption {
 	source: "built-in" | "local" | "remote";
 	npxPackage?: string;
 	installUrl?: string;
+	/** Optional icon URL from the remote registry, used when available. */
+	iconUrl?: string;
+	/** Version currently installed on the host, when detected. */
+	version?: string | null;
+	/** Version available in the registry / catalog. */
+	latestVersion?: string | null;
+	/** Command string that installs the agent (shown / executed by the UI). */
+	installCommand?: string;
+	/** Command string that updates the agent to `latestVersion` (shown / executed by the UI). */
+	updateCommand?: string;
 	models: ModelDescriptor[];
 	/**
 	 * Static catalogue of thinking levels — empty array hides the chip

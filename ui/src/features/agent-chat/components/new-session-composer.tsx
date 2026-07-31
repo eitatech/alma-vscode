@@ -24,7 +24,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ChipDropdown, type ChipDropdownOption } from "./chip-dropdown";
 import { ChipOverflowBar, type ChipOverflowItem } from "./chip-overflow-bar";
-import { PermissionChip } from "./permission-chip";
+import { ComposerContext } from "./composer-context";
 import { providerIconClass } from "./provider-icon";
 import type {
 	AgentChatAgentFileOption,
@@ -65,6 +65,16 @@ interface NewSessionComposerProps {
 	 * agent-reported list as soon as it lands.
 	 */
 	readonly onProbeProviderModels?: (providerId: string) => void;
+	/**
+	 * Request that the host install the selected provider. The host
+	 * shows the install command or runs it directly.
+	 */
+	readonly onInstallProvider?: (providerId: string) => void;
+	/**
+	 * Request that the host update the selected provider to the latest
+	 * registry version.
+	 */
+	readonly onUpdateProvider?: (providerId: string) => void;
 }
 
 interface ComposerSelection {
@@ -88,6 +98,8 @@ export function NewSessionComposer({
 	onChangePermissionDefault,
 	modelsLoading,
 	onProbeProviderModels,
+	onInstallProvider,
+	onUpdateProvider,
 }: NewSessionComposerProps): JSX.Element {
 	const defaultProviderId = useMemo(
 		() => providers.find((p) => p.enabled)?.id,
@@ -159,7 +171,8 @@ export function NewSessionComposer({
 				label: providerLabel(provider),
 				description: providerDescription(provider),
 				disabled: !provider.enabled,
-				icon: "codicon-robot",
+				icon: providerIconClass(provider.id),
+				iconUrl: provider.iconUrl,
 			})),
 		[providers]
 	);
@@ -232,6 +245,18 @@ export function NewSessionComposer({
 
 	const canSubmit = Boolean(selection.providerId) && prompt.trim().length > 0;
 
+	const handleInstall = useCallback(() => {
+		if (selection.providerId && onInstallProvider) {
+			onInstallProvider(selection.providerId);
+		}
+	}, [selection.providerId, onInstallProvider]);
+
+	const handleUpdate = useCallback(() => {
+		if (selection.providerId && onUpdateProvider) {
+			onUpdateProvider(selection.providerId);
+		}
+	}, [selection.providerId, onUpdateProvider]);
+
 	const handleSubmit = useCallback(() => {
 		const providerId = selection.providerId;
 		if (!providerId) {
@@ -292,6 +317,12 @@ export function NewSessionComposer({
 		[agentRoles]
 	);
 
+	const providerMenuHeader = useMemo(
+		() =>
+			renderProviderMenuHeader(selectedProvider, handleInstall, handleUpdate),
+		[selectedProvider, handleInstall, handleUpdate]
+	);
+
 	// Chip order matches the reference image:
 	// Provider (icon-only) → Model → Thinking → Agent-role → Agent-file → Permission.
 	const chipItems = useMemo<readonly ChipOverflowItem[]>(() => {
@@ -310,6 +341,8 @@ export function NewSessionComposer({
 								: "codicon-robot"
 						}
 						iconOnly
+						iconUrl={selectedProvider?.iconUrl}
+						menuHeader={providerMenuHeader}
 						onChange={handleProviderChange}
 						options={providerOptions}
 						value={selection.providerId}
@@ -376,15 +409,6 @@ export function NewSessionComposer({
 				/>
 			),
 		});
-		list.push({
-			key: "permission",
-			node: (
-				<PermissionChip
-					onChange={onChangePermissionDefault}
-					value={permissionDefault}
-				/>
-			),
-		});
 		return list;
 	}, [
 		selectedProvider,
@@ -406,18 +430,21 @@ export function NewSessionComposer({
 		modelLabel,
 		isLoadingModels,
 		modelOptions,
-		permissionDefault,
 		handleProviderChange,
 		handleAgentFileChange,
 		handleModelChange,
 		handleThinkingLevelChange,
 		handleAgentRoleChange,
-		onChangePermissionDefault,
+		providerMenuHeader,
 	]);
 
 	return (
 		<div className="agent-chat-new-session">
 			<div className="agent-chat-new-session__box">
+				<div className="agent-chat-new-session__tip">
+					<strong>Tip:</strong> Use <code>/create_agent</code> to scaffold a
+					custom agent for your workflow.
+				</div>
 				<textarea
 					className="agent-chat-new-session__textarea"
 					onChange={(e) => setPrompt(e.target.value)}
@@ -449,6 +476,13 @@ export function NewSessionComposer({
 					</div>
 				</div>
 			</div>
+			<div className="agent-chat-new-session__context">
+				<ComposerContext
+					executionTargetLabel="Local"
+					onChangePermissionDefault={onChangePermissionDefault}
+					permissionDefault={permissionDefault}
+				/>
+			</div>
 		</div>
 	);
 }
@@ -461,6 +495,8 @@ function providerLabel(provider: AgentChatProviderOption): string {
 			return `${provider.displayName} (via npx)`;
 		case "install-required":
 			return `${provider.displayName} (install required)`;
+		case "update-available":
+			return `${provider.displayName} (update available)`;
 		default:
 			return provider.displayName;
 	}
@@ -477,7 +513,71 @@ function providerDescription(
 			return "Will be downloaded on demand via npx.";
 		case "install-required":
 			return "Install the CLI before using this agent.";
+		case "update-available":
+			return `Update from v${provider.version ?? "?"} to v${provider.latestVersion ?? "?"}.`;
 		default:
 			return;
 	}
+}
+
+function renderProviderMenuHeader(
+	selectedProvider: AgentChatProviderOption | undefined,
+	handleInstall: () => void,
+	handleUpdate: () => void
+): JSX.Element | null {
+	if (!selectedProvider) {
+		return null;
+	}
+	if (selectedProvider.availability === "install-required") {
+		return (
+			<div className="agent-chat-provider-menu-header">
+				<p>{selectedProvider.description ?? "Agent not installed."}</p>
+				{selectedProvider.installCommand && (
+					<button onClick={handleInstall} type="button">
+						Install {selectedProvider.displayName}
+					</button>
+				)}
+				{selectedProvider.installUrl && !selectedProvider.installCommand && (
+					<a
+						href={selectedProvider.installUrl}
+						onClick={(e) => {
+							e.preventDefault();
+							handleInstall();
+						}}
+					>
+						Install from {selectedProvider.installUrl}
+					</a>
+				)}
+			</div>
+		);
+	}
+	if (selectedProvider.availability === "update-available") {
+		return (
+			<div className="agent-chat-provider-menu-header">
+				<p>
+					Update available: v{selectedProvider.version} → v
+					{selectedProvider.latestVersion}
+				</p>
+				{selectedProvider.updateCommand && (
+					<button onClick={handleUpdate} type="button">
+						Update to v{selectedProvider.latestVersion}
+					</button>
+				)}
+			</div>
+		);
+	}
+	if (selectedProvider.version) {
+		return (
+			<div className="agent-chat-provider-menu-header">
+				<p>
+					v{selectedProvider.version}
+					{selectedProvider.latestVersion &&
+					selectedProvider.latestVersion !== selectedProvider.version
+						? ` (latest: v${selectedProvider.latestVersion})`
+						: ""}
+				</p>
+			</div>
+		);
+	}
+	return null;
 }

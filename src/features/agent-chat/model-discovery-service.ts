@@ -239,14 +239,23 @@ export class ModelDiscoveryService implements Disposable {
 					fetchedAt: this.now(),
 				};
 			}
+			// Probe succeeded but agent reported no models — fall back to
+			// the static catalog as a last resort. The agent IS running,
+			// it just doesn't surface a model list via ACP.
+			return this.fallbackToCatalog(providerId);
 		} catch (error) {
 			this.log(
 				`[ModelDiscovery] probe failed for ${providerId}: ${
 					error instanceof Error ? error.message : String(error)
 				}`
 			);
+			// Probe failed (agent not installed, can't spawn, timeout, etc.)
+			// — do NOT fall back to the static catalog. Showing outdated
+			// hardcoded models when the agent isn't even installed is
+			// misleading. Return an empty "none" result so the UI hides
+			// the model selector.
+			return { ...EMPTY_RESULT, fetchedAt: this.now() };
 		}
-		return this.fallbackToCatalog(providerId);
 	}
 
 	private fallbackToCatalog(providerId: string): DiscoveredModels {

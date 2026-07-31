@@ -148,6 +148,7 @@ describe("useSessionBridge (T024)", () => {
 			expect(result.current.state.session?.id).toBe("s-1");
 			expect(result.current.state.messages).toHaveLength(1);
 			expect(result.current.state.availableModes).toHaveLength(1);
+			expect(result.current.state.availableCommands).toEqual([]);
 		});
 
 		it("ignores session/loaded messages for a different session id", () => {
@@ -168,6 +169,59 @@ describe("useSessionBridge (T024)", () => {
 			});
 
 			expect(result.current.state.ready).toBe(false);
+		});
+	});
+
+	describe("ACP session metadata", () => {
+		it("hydrates and incrementally replaces commands, config, and usage", () => {
+			const { result } = renderHook(() => useSessionBridge("s-1"));
+			act(() => {
+				postFromExtension({
+					type: "agent-chat/session/loaded",
+					payload: {
+						session: sessionView({
+							availableCommands: [{ name: "review", description: "Review" }],
+							acpUsage: { used: 10, size: 100 },
+						}),
+						messages: [],
+						availableModes: [],
+						availableModels: [],
+						availableTargets: [],
+						hasArchivedTranscript: false,
+					},
+				});
+			});
+
+			expect(result.current.state.availableCommands).toHaveLength(1);
+			expect(result.current.state.acpUsage?.used).toBe(10);
+
+			act(() => {
+				postFromExtension({
+					type: "agent-chat/session/metadata-changed",
+					payload: {
+						sessionId: "s-1",
+						availableCommands: [{ name: "compact", description: "Compact" }],
+						configOptions: [],
+						acpUsage: { used: 50, size: 100 },
+						selectedModeId: "plan",
+					},
+				});
+			});
+
+			expect(result.current.state.availableCommands[0]?.name).toBe("compact");
+			expect(result.current.state.acpUsage?.used).toBe(50);
+			expect(result.current.state.session?.selectedModeId).toBe("plan");
+		});
+	});
+
+	describe("ACP config option controls", () => {
+		it("posts config option changes for the active session", () => {
+			const { result } = renderHook(() => useSessionBridge("s-1"));
+			act(() => result.current.changeConfigOption("mode", "plan"));
+			expect(fakeVscode.postMessage).toHaveBeenCalledWith({
+				type: "agent-chat/control/change-config-option",
+				payload: { sessionId: "s-1", configId: "mode", value: "plan" },
+			});
 		});
 	});
 
@@ -307,6 +361,98 @@ describe("useSessionBridge (T024)", () => {
 
 			const agent = result.current.state.messages.find((m) => m.id === "m-1");
 			expect((agent as { content: string }).content).toBe("agent reply");
+		});
+
+		it("patches a thought message's isTurnComplete field", () => {
+			const { result } = renderHook(() => useSessionBridge("s-1"));
+			const thoughtMsg = {
+				id: "t-1",
+				sessionId: "s-1",
+				timestamp: 1000,
+				sequence: 0,
+				role: "thought",
+				content: "Considering options.",
+				turnId: "turn-1",
+				isTurnComplete: false,
+			} as ChatMessage;
+			act(() => {
+				postFromExtension({
+					type: "agent-chat/session/loaded",
+					payload: {
+						session: sessionView(),
+						messages: [thoughtMsg],
+						availableModes: [],
+						availableModels: [],
+						availableTargets: [],
+						hasArchivedTranscript: false,
+					},
+				});
+			});
+
+			act(() => {
+				postFromExtension({
+					type: "agent-chat/messages/updated",
+					payload: {
+						sessionId: "s-1",
+						updates: [{ id: "t-1", patch: { isTurnComplete: true } }],
+					},
+				});
+			});
+
+			const patched = result.current.state.messages.find(
+				(m) => m.id === "t-1"
+			) as { isTurnComplete: boolean; content: string };
+			expect(patched.isTurnComplete).toBe(true);
+			// Content must be preserved, not dropped.
+			expect(patched.content).toBe("Considering options.");
+		});
+
+		it("patches a plan message's entries field", () => {
+			const { result } = renderHook(() => useSessionBridge("s-1"));
+			const planMsg = {
+				id: "p-1",
+				sessionId: "s-1",
+				timestamp: 1000,
+				sequence: 0,
+				role: "plan",
+				turnId: "turn-1",
+				entries: [
+					{ content: "Read repo", status: "pending" },
+					{ content: "Write code", status: "pending" },
+				],
+			} as ChatMessage;
+			act(() => {
+				postFromExtension({
+					type: "agent-chat/session/loaded",
+					payload: {
+						session: sessionView(),
+						messages: [planMsg],
+						availableModes: [],
+						availableModels: [],
+						availableTargets: [],
+						hasArchivedTranscript: false,
+					},
+				});
+			});
+
+			const updatedEntries = [
+				{ content: "Read repo", status: "completed" },
+				{ content: "Write code", status: "in_progress", priority: "high" },
+			];
+			act(() => {
+				postFromExtension({
+					type: "agent-chat/messages/updated",
+					payload: {
+						sessionId: "s-1",
+						updates: [{ id: "p-1", patch: { entries: updatedEntries } }],
+					},
+				});
+			});
+
+			const patched = result.current.state.messages.find(
+				(m) => m.id === "p-1"
+			) as { entries: Array<{ content: string; status: string }> };
+			expect(patched.entries).toEqual(updatedEntries);
 		});
 	});
 

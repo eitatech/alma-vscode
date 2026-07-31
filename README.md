@@ -130,6 +130,10 @@ You can follow our progress, open issues, or contribute directly through our off
   sessions depending on how much context sharing you want.
 - **Permission policy**: Control the default answer for ACP tool permission
   prompts and optionally enable verbose ACP logging.
+- **Live ACP transcript**: Read safe Markdown responses, reasoning, plans, tool
+  progress, file changes, and context usage as the agent streams updates.
+- **Agent-driven controls**: Discover slash commands and session configuration
+  options exposed by the active ACP agent without leaving the composer.
 - **Running Agents view**: Start new agent chat sessions, reopen active/recent
   sessions, inspect lifecycle state, and clean up orphaned worktrees.
 - **Cloud Agents view**: Select a provider, monitor task and PR progress, open

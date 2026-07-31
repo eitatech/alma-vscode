@@ -10,6 +10,7 @@ import {
 	type AcpSessionEventListener,
 	type PermissionMode,
 	type PermissionPrompter,
+	toMessage,
 } from "./acp-client";
 import type { AcpProviderRegistry } from "./acp-provider-registry";
 import type {
@@ -60,6 +61,11 @@ export interface AcpSessionManagerOptions {
 	 * file changes before they hit disk (Phase 4 redesign).
 	 */
 	bufferFileWrites?: boolean;
+	/**
+	 * Forwarded to every spawned {@link AcpClient}. Maximum time (ms)
+	 * to wait for a single prompt turn before timing out.
+	 */
+	promptTimeoutMs?: number;
 }
 
 /**
@@ -80,6 +86,7 @@ export class AcpSessionManager {
 	private readonly promptForPermission: PermissionPrompter | undefined;
 	private readonly beforeSpawn: BeforeSpawnHook | undefined;
 	private readonly bufferFileWrites: boolean;
+	private readonly promptTimeoutMs: number | undefined;
 	/**
 	 * Cached clients keyed by `${providerId}::${cwd}` (F1 remediation) so two
 	 * concurrent worktree sessions for the same provider never share a
@@ -100,6 +107,7 @@ export class AcpSessionManager {
 		this.promptForPermission = options.promptForPermission;
 		this.beforeSpawn = options.beforeSpawn;
 		this.bufferFileWrites = options.bufferFileWrites ?? false;
+		this.promptTimeoutMs = options.promptTimeoutMs;
 	}
 
 	/**
@@ -169,17 +177,24 @@ export class AcpSessionManager {
 	 * Variant of {@link send} that takes a caller-supplied session id directly,
 	 * skipping the {@link SessionMode} → key mapping. Used by `AcpChatRunner`
 	 * which mints its own ids via {@link deriveAcpSessionId}.
+	 *
+	 * When `modelId` is provided, the client applies it via
+	 * `session/set_model` before the first prompt on a freshly created
+	 * session. Best-effort: agents that don't implement the experimental
+	 * RPC silently fall back to their default model.
 	 */
+	// biome-ignore lint/nursery/useMaxParams: ACP session routing requires provider, cwd, session, prompt, and optional model options
 	async sendPromptDirect(
 		providerId: string,
 		cwd: string | undefined,
 		sessionId: string,
-		prompt: string
+		prompt: string,
+		options?: { modelId?: string }
 	): Promise<void> {
 		const resolvedCwd = cwd ?? this.cwd;
 		await this.ensureSpawnConsent(providerId, resolvedCwd);
 		const client = this.ensureClient(providerId, resolvedCwd);
-		await client.sendPrompt(sessionId, prompt);
+		await client.sendPrompt(sessionId, prompt, options);
 	}
 
 	/**
@@ -313,6 +328,19 @@ export class AcpSessionManager {
 		await client.setSessionModel(sessionKey, modelId);
 	}
 
+	// biome-ignore lint/nursery/useMaxParams: ACP routing requires provider, cwd, session, config id, and selected value
+	async setSessionConfigOption(
+		providerId: string,
+		cwd: string | undefined,
+		sessionId: string,
+		configId: string,
+		value: string
+	): Promise<void> {
+		const client = this.ensureClient(providerId, cwd ?? this.cwd);
+		const sessionKey = client.findSessionKeyByAcpId(sessionId) ?? sessionId;
+		await client.setSessionConfigOption(sessionKey, configId, value);
+	}
+
 	/**
 	 * Spawn the provider's CLI (if not already running) and read its
 	 * model catalogue via a probe `newSession` call. Reuses the cached
@@ -341,9 +369,7 @@ export class AcpSessionManager {
 			try {
 				client.dispose();
 			} catch (error) {
-				this.output.appendLine(
-					`[ACP] dispose failed: ${error instanceof Error ? error.message : String(error)}`
-				);
+				this.output.appendLine(`[ACP] dispose failed: ${toMessage(error)}`);
 			}
 		}
 		this.clients.clear();
@@ -378,6 +404,7 @@ export class AcpSessionManager {
 			permissionDefault: this.permissionDefault,
 			promptForPermission: this.promptForPermission,
 			bufferFileWrites: this.bufferFileWrites,
+			promptTimeoutMs: this.promptTimeoutMs,
 		});
 		this.clients.set(key, client);
 		return client;

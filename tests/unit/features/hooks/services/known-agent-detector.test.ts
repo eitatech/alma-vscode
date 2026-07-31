@@ -276,7 +276,9 @@ describe("KnownAgentDetector", () => {
 
 			const first = await detector.isInstalledAny(strategies);
 			expect(first).toBe(false);
-			expect(mockExecFile).toHaveBeenCalledTimes(1);
+			// The path strategy probes the login shell and then falls back to a
+			// direct `which` search with extended PATH directories.
+			expect(mockExecFile).toHaveBeenCalledTimes(2);
 
 			vi.clearAllMocks();
 			const second = await detector.isInstalledAny(strategies);

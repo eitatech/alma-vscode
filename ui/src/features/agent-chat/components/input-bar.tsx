@@ -24,14 +24,23 @@
  * conversation without re-opening the empty composer.
  */
 
-import { type ChangeEvent, useCallback, useMemo, useState } from "react";
+import {
+	type ChangeEvent,
+	type KeyboardEvent,
+	useCallback,
+	useMemo,
+	useState,
+} from "react";
 import { ChipDropdown, type ChipDropdownOption } from "./chip-dropdown";
-import { PermissionChip } from "./permission-chip";
+import { ComposerContext } from "./composer-context";
 import { providerIconClass } from "./provider-icon";
 import type {
 	AgentRoleDescriptor,
+	AcpUsageSnapshot,
+	AvailableAgentCommand,
 	ModelDescriptor,
 	PermissionDefaultMode,
+	SessionConfigOptionDescriptor,
 	ThinkingLevelDescriptor,
 } from "@/features/agent-chat/types";
 
@@ -78,6 +87,8 @@ interface InputBarProps {
 	readonly providerId?: string;
 	/** Display name shown as the provider chip's tooltip + a11y label. */
 	readonly providerDisplayName?: string;
+	/** Optional icon URL from the remote registry, rendered instead of a codicon. */
+	readonly providerIconUrl?: string;
 	/**
 	 * Thinking levels reported by the agent for this session. Empty /
 	 * undefined hides the chip.
@@ -89,7 +100,14 @@ interface InputBarProps {
 	readonly availableAgentRoles?: readonly AgentRoleDescriptor[];
 	readonly selectedAgentRoleId?: string;
 	readonly onChangeAgentRole?: (id: string) => void;
+	readonly availableCommands?: readonly AvailableAgentCommand[];
+	readonly usage?: AcpUsageSnapshot;
+	readonly executionTargetLabel?: string;
+	readonly configOptions?: readonly SessionConfigOptionDescriptor[];
+	readonly onChangeConfigOption?: (configId: string, value: string) => void;
 }
+
+const SLASH_COMMAND_QUERY = /^\/([^\s]*)$/;
 
 export function InputBar({
 	onSubmit,
@@ -109,14 +127,21 @@ export function InputBar({
 	modelsLoading,
 	providerId,
 	providerDisplayName,
+	providerIconUrl,
 	availableThinkingLevels,
 	selectedThinkingLevelId,
 	onChangeThinkingLevel,
 	availableAgentRoles,
 	selectedAgentRoleId,
 	onChangeAgentRole,
+	availableCommands,
+	usage,
+	executionTargetLabel = "Local",
+	configOptions,
+	onChangeConfigOption,
 }: InputBarProps): JSX.Element {
 	const [value, setValue] = useState("");
+	const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
 
 	const disabled = Boolean(readOnly) || !acceptsFollowUp || Boolean(terminal);
 	const disabledReason = resolveDisabledReason({
@@ -137,6 +162,49 @@ export function InputBar({
 
 	const canSend = !disabled && value.trim().length > 0;
 	const showStop = Boolean(busy) && Boolean(onCancel);
+	const filteredCommands = useMemo(
+		() => filterCommands(value, availableCommands ?? []),
+		[value, availableCommands]
+	);
+	const commandMenuOpen = filteredCommands.length > 0;
+
+	const selectCommand = useCallback((command: AvailableAgentCommand) => {
+		setValue(`/${command.name} `);
+		setSelectedCommandIndex(0);
+	}, []);
+
+	const handleKeyDown = useCallback(
+		(event: KeyboardEvent<HTMLTextAreaElement>) => {
+			if (
+				handleCommandMenuKey({
+					event,
+					commands: filteredCommands,
+					selectedIndex: selectedCommandIndex,
+					selectCommand,
+					setSelectedIndex: setSelectedCommandIndex,
+				})
+			) {
+				return;
+			}
+			if (event.key === "Escape" && busy && onCancel) {
+				event.preventDefault();
+				onCancel();
+				return;
+			}
+			if (event.key === "Enter" && !event.shiftKey) {
+				event.preventDefault();
+				handleSubmit();
+			}
+		},
+		[
+			busy,
+			filteredCommands,
+			handleSubmit,
+			onCancel,
+			selectCommand,
+			selectedCommandIndex,
+		]
+	);
 
 	return (
 		<div className="agent-chat-input">
@@ -146,16 +214,18 @@ export function InputBar({
 				</div>
 			) : null}
 			<div className="agent-chat-input__box">
+				{availableCommands &&
+				availableCommands.length > 0 &&
+				value.length === 0 ? (
+					<div className="agent-chat-input__tip">
+						<strong>Tip:</strong> Type <code>/</code> to use agent commands.
+					</div>
+				) : null}
 				<textarea
 					className="agent-chat-input__textarea"
 					disabled={disabled}
 					onChange={(e) => setValue(e.target.value)}
-					onKeyDown={(e) => {
-						if (e.key === "Enter" && !e.shiftKey) {
-							e.preventDefault();
-							handleSubmit();
-						}
-					}}
+					onKeyDown={handleKeyDown}
 					placeholder={
 						disabled
 							? (disabledReason ?? "Input disabled")
@@ -164,6 +234,31 @@ export function InputBar({
 					rows={3}
 					value={value}
 				/>
+				{commandMenuOpen ? (
+					<div
+						aria-label="Agent commands"
+						className="agent-chat-input__commands"
+						role="listbox"
+					>
+						{filteredCommands.map((command, index) => (
+							<button
+								aria-selected={index === selectedCommandIndex}
+								className="agent-chat-input__command"
+								key={command.name}
+								onClick={() => selectCommand(command)}
+								role="option"
+								type="button"
+							>
+								<code>/{command.name}</code>
+								<span>
+									{command.description ??
+										command.input?.hint ??
+										"Agent command"}
+								</span>
+							</button>
+						))}
+					</div>
+				) : null}
 				<div className="agent-chat-input__toolbar">
 					<div className="agent-chat-input__toolbar-left">
 						<button
@@ -178,30 +273,25 @@ export function InputBar({
 						{providerId ? (
 							<ProviderIconChip
 								displayName={providerDisplayName ?? providerId}
+								iconUrl={providerIconUrl}
 								providerId={providerId}
 							/>
 						) : null}
-						<ModelChip
+						<InputSelectors
+							availableAgentRoles={availableAgentRoles}
 							availableModels={availableModels}
+							availableThinkingLevels={availableThinkingLevels}
+							configOptions={configOptions}
 							currentModelId={currentModelId}
-							loading={Boolean(modelsLoading)}
 							modelLabel={modelLabel}
-							onChange={onChangeModel}
-							onRefresh={onRefreshModels}
-						/>
-						<ThinkingChip
-							onChange={onChangeThinkingLevel}
-							options={availableThinkingLevels}
-							value={selectedThinkingLevelId}
-						/>
-						<AgentRoleChip
-							onChange={onChangeAgentRole}
-							options={availableAgentRoles}
-							value={selectedAgentRoleId}
-						/>
-						<PermissionChip
-							onChange={onChangePermissionDefault}
-							value={permissionDefault}
+							modelsLoading={Boolean(modelsLoading)}
+							onChangeAgentRole={onChangeAgentRole}
+							onChangeConfigOption={onChangeConfigOption}
+							onChangeModel={onChangeModel}
+							onChangeThinkingLevel={onChangeThinkingLevel}
+							onRefreshModels={onRefreshModels}
+							selectedAgentRoleId={selectedAgentRoleId}
+							selectedThinkingLevelId={selectedThinkingLevelId}
 						/>
 					</div>
 					<div className="agent-chat-input__toolbar-right">
@@ -245,8 +335,185 @@ export function InputBar({
 					</div>
 				</div>
 			</div>
+			<ComposerContext
+				executionTargetLabel={executionTargetLabel}
+				onChangePermissionDefault={onChangePermissionDefault}
+				permissionDefault={permissionDefault}
+				usage={usage}
+			/>
 		</div>
 	);
+}
+
+function filterCommands(
+	value: string,
+	commands: readonly AvailableAgentCommand[]
+): AvailableAgentCommand[] {
+	const match = SLASH_COMMAND_QUERY.exec(value);
+	if (!match) {
+		return [];
+	}
+	const query = (match[1] ?? "").toLocaleLowerCase();
+	return commands
+		.filter((command) => command.name.toLocaleLowerCase().includes(query))
+		.slice(0, 8);
+}
+
+interface CommandMenuKeyContext {
+	readonly event: KeyboardEvent<HTMLTextAreaElement>;
+	readonly commands: readonly AvailableAgentCommand[];
+	readonly selectedIndex: number;
+	readonly selectCommand: (command: AvailableAgentCommand) => void;
+	readonly setSelectedIndex: (updater: (index: number) => number) => void;
+}
+
+function handleCommandMenuKey({
+	event,
+	commands,
+	selectedIndex,
+	selectCommand,
+	setSelectedIndex,
+}: CommandMenuKeyContext): boolean {
+	if (commands.length === 0) {
+		return false;
+	}
+	switch (event.key) {
+		case "ArrowDown":
+			event.preventDefault();
+			setSelectedIndex((index) => (index + 1) % commands.length);
+			return true;
+		case "ArrowUp":
+			event.preventDefault();
+			setSelectedIndex(
+				(index) => (index - 1 + commands.length) % commands.length
+			);
+			return true;
+		case "Tab":
+		case "Enter": {
+			event.preventDefault();
+			const command = commands[selectedIndex];
+			if (command) {
+				selectCommand(command);
+			}
+			return true;
+		}
+		default:
+			return false;
+	}
+}
+
+interface InputSelectorsProps {
+	readonly availableAgentRoles?: readonly AgentRoleDescriptor[];
+	readonly availableModels?: readonly ModelDescriptor[];
+	readonly availableThinkingLevels?: readonly ThinkingLevelDescriptor[];
+	readonly configOptions?: readonly SessionConfigOptionDescriptor[];
+	readonly currentModelId?: string;
+	readonly modelLabel?: string;
+	readonly modelsLoading: boolean;
+	readonly onChangeAgentRole?: (id: string) => void;
+	readonly onChangeConfigOption?: (configId: string, value: string) => void;
+	readonly onChangeModel?: (modelId: string) => void;
+	readonly onChangeThinkingLevel?: (id: string) => void;
+	readonly onRefreshModels?: () => void;
+	readonly selectedAgentRoleId?: string;
+	readonly selectedThinkingLevelId?: string;
+}
+
+function InputSelectors({
+	availableAgentRoles,
+	availableModels,
+	availableThinkingLevels,
+	configOptions,
+	currentModelId,
+	modelLabel,
+	modelsLoading,
+	onChangeAgentRole,
+	onChangeConfigOption,
+	onChangeModel,
+	onChangeThinkingLevel,
+	onRefreshModels,
+	selectedAgentRoleId,
+	selectedThinkingLevelId,
+}: InputSelectorsProps): JSX.Element {
+	if (configOptions && configOptions.length > 0) {
+		return (
+			<>
+				{configOptions.map((option) => (
+					<SessionConfigChip
+						key={option.id}
+						onChange={onChangeConfigOption}
+						option={option}
+					/>
+				))}
+			</>
+		);
+	}
+	return (
+		<>
+			<ModelChip
+				availableModels={availableModels}
+				currentModelId={currentModelId}
+				loading={modelsLoading}
+				modelLabel={modelLabel}
+				onChange={onChangeModel}
+				onRefresh={onRefreshModels}
+			/>
+			<ThinkingChip
+				onChange={onChangeThinkingLevel}
+				options={availableThinkingLevels}
+				value={selectedThinkingLevelId}
+			/>
+			<AgentRoleChip
+				onChange={onChangeAgentRole}
+				options={availableAgentRoles}
+				value={selectedAgentRoleId}
+			/>
+		</>
+	);
+}
+
+interface SessionConfigChipProps {
+	readonly option: SessionConfigOptionDescriptor;
+	readonly onChange: ((configId: string, value: string) => void) | undefined;
+}
+
+function SessionConfigChip({
+	option,
+	onChange,
+}: SessionConfigChipProps): JSX.Element {
+	const values = option.values.map((value) => ({
+		value: value.value,
+		label: value.name,
+		description: value.description ?? value.group,
+		icon: configOptionIcon(option.category),
+	}));
+	const active = option.values.find(
+		(value) => value.value === option.currentValue
+	);
+	return (
+		<ChipDropdown
+			ariaPrefix={option.name}
+			currentLabel={active?.name ?? option.currentValue}
+			disabled={!onChange}
+			icon={configOptionIcon(option.category)}
+			onChange={(value) => onChange?.(option.id, value)}
+			options={values}
+			value={option.currentValue}
+		/>
+	);
+}
+
+function configOptionIcon(category: string | undefined): string {
+	switch (category) {
+		case "model":
+			return "codicon-symbol-color";
+		case "thought_level":
+			return "codicon-pulse";
+		case "mode":
+			return "codicon-robot";
+		default:
+			return "codicon-settings-gear";
+	}
 }
 
 interface DisabledReasonInput {
@@ -389,6 +656,7 @@ function ModelChip({
 interface ProviderIconChipProps {
 	readonly providerId: string;
 	readonly displayName: string;
+	readonly iconUrl?: string;
 }
 
 /**
@@ -405,6 +673,7 @@ interface ProviderIconChipProps {
 function ProviderIconChip({
 	providerId,
 	displayName,
+	iconUrl,
 }: ProviderIconChipProps): JSX.Element {
 	return (
 		<span className="agent-chat-chip" title={displayName}>
@@ -414,10 +683,21 @@ function ProviderIconChip({
 				disabled
 				type="button"
 			>
-				<i
-					aria-hidden="true"
-					className={`codicon ${providerIconClass(providerId)}`}
-				/>
+				{iconUrl ? (
+					<img
+						alt=""
+						aria-hidden="true"
+						className="agent-chat-chip__icon-img"
+						height={14}
+						src={iconUrl}
+						width={14}
+					/>
+				) : (
+					<i
+						aria-hidden="true"
+						className={`codicon ${providerIconClass(providerId)}`}
+					/>
+				)}
 			</button>
 		</span>
 	);

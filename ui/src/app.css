@@ -748,7 +748,8 @@ b {
 .agent-chat-new-session {
 	display: flex;
 	flex-direction: column;
-	padding: 12px;
+	gap: 5px;
+	padding: 8px 12px 6px;
 }
 
 /*
@@ -770,6 +771,34 @@ b {
 	 */
 }
 
+.agent-chat-new-session__tip,
+.agent-chat-input__tip {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	min-height: 28px;
+	padding: 4px 9px;
+	box-sizing: border-box;
+	border-bottom: 1px solid
+		var(--vscode-input-border, rgba(128, 128, 128, 0.25));
+	color: var(--vscode-descriptionForeground);
+	font-size: 11px;
+	line-height: 1.35;
+}
+
+.agent-chat-new-session__tip strong,
+.agent-chat-input__tip strong {
+	color: var(--vscode-foreground);
+	font-weight: 600;
+}
+
+.agent-chat-new-session__tip code,
+.agent-chat-input__tip code {
+	color: var(--vscode-textLink-foreground);
+	font-family: var(--vscode-editor-font-family, monospace);
+	font-size: 10px;
+}
+
 .agent-chat-new-session__box:focus-within {
 	border-color: var(--vscode-focusBorder, #007fd4);
 }
@@ -784,8 +813,12 @@ b {
 	font-family: inherit;
 	font-size: 13px;
 	line-height: 1.45;
-	min-height: 72px;
+	min-height: 58px;
 	box-sizing: border-box;
+}
+
+.agent-chat-new-session__context {
+	min-width: 0;
 }
 
 .agent-chat-new-session__textarea:focus {
@@ -904,8 +937,8 @@ b {
 .agent-chat-input {
 	display: flex;
 	flex-direction: column;
-	gap: 6px;
-	padding: 8px;
+	gap: 5px;
+	padding: 8px 10px 6px;
 	border-top: 1px solid var(--vscode-panel-border, rgba(128, 128, 128, 0.2));
 	background: var(--vscode-sideBar-background);
 }
@@ -931,11 +964,65 @@ b {
 .agent-chat-input__box {
 	display: flex;
 	flex-direction: column;
+	position: relative;
 	background: var(--vscode-input-background);
 	border: 1px solid var(--vscode-input-border, rgba(128, 128, 128, 0.4));
 	border-radius: 6px;
 	/* See note on `.agent-chat-new-session__box` — overflow stays
 	 * visible so the PermissionChip menu can render above the toolbar. */
+}
+
+.agent-chat-input__commands {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: calc(100% + 5px);
+	max-height: min(240px, 45vh);
+	overflow-y: auto;
+	padding: 4px;
+	background: var(--vscode-editorWidget-background);
+	border: 1px solid var(--vscode-editorWidget-border, rgba(128, 128, 128, 0.4));
+	border-radius: 6px;
+	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.24);
+	z-index: 60;
+}
+
+.agent-chat-input__command {
+	display: flex;
+	align-items: baseline;
+	gap: 10px;
+	width: 100%;
+	padding: 6px 8px;
+	background: transparent;
+	border: none;
+	border-radius: 4px;
+	color: var(--vscode-foreground);
+	font: inherit;
+	font-size: 11px;
+	text-align: left;
+	cursor: pointer;
+}
+
+.agent-chat-input__command:hover,
+.agent-chat-input__command[aria-selected="true"] {
+	background: var(--vscode-list-activeSelectionBackground);
+	color: var(--vscode-list-activeSelectionForeground);
+}
+
+.agent-chat-input__command code {
+	flex: 0 0 auto;
+	color: inherit;
+	font-family: var(--vscode-editor-font-family, monospace);
+	font-size: 11px;
+	font-weight: 600;
+}
+
+.agent-chat-input__command span {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	opacity: 0.8;
 }
 
 .agent-chat-input__box:focus-within {
@@ -1175,6 +1262,85 @@ b {
 	min-width: 0;
 }
 
+.agent-chat-markdown {
+	max-width: 72ch;
+	font-size: 13px;
+	line-height: 1.55;
+}
+
+.agent-chat-markdown > :first-child {
+	margin-top: 0;
+}
+
+.agent-chat-markdown > :last-child {
+	margin-bottom: 0;
+}
+
+.agent-chat-markdown p,
+.agent-chat-markdown ul,
+.agent-chat-markdown ol,
+.agent-chat-markdown pre,
+.agent-chat-markdown blockquote {
+	margin-top: 0.55em;
+	margin-bottom: 0.55em;
+}
+
+.agent-chat-markdown h1,
+.agent-chat-markdown h2,
+.agent-chat-markdown h3,
+.agent-chat-markdown h4 {
+	margin-top: 0.9em;
+	margin-bottom: 0.4em;
+	font-size: 1em;
+	line-height: 1.35;
+}
+
+.agent-chat-markdown pre {
+	padding: 8px 10px;
+	border: none;
+	border-radius: 4px;
+}
+
+.agent-chat-markdown a {
+	color: var(--vscode-textLink-foreground);
+}
+
+.agent-chat-composer-context {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-width: 0;
+	min-height: 22px;
+	padding: 0 2px;
+	color: var(--vscode-descriptionForeground);
+	font-size: 10px;
+}
+
+.agent-chat-composer-context__item,
+.agent-chat-composer-context__usage {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	min-width: 0;
+	white-space: nowrap;
+}
+
+.agent-chat-composer-context__usage {
+	margin-left: auto;
+}
+
+.agent-chat-composer-context .agent-chat-chip__toggle {
+	min-height: 20px;
+	padding: 1px 3px;
+	border: none;
+	border-radius: 3px;
+	color: var(--vscode-descriptionForeground);
+}
+
+.agent-chat-composer-context .agent-chat-chip__toggle:hover:not(:disabled) {
+	color: var(--vscode-foreground);
+}
+
 /* System: discreet banner */
 .agent-chat-message--system {
 	padding: 4px 12px;
@@ -1350,7 +1516,37 @@ b {
 .agent-chat-message--tool {
 	align-items: center;
 	gap: 8px;
+	flex-wrap: wrap;
 	padding: 6px 12px;
+}
+
+.agent-chat-message__tool-detail,
+.agent-chat-tool-card__detail {
+	flex: 0 0 100%;
+	width: 100%;
+	color: var(--vscode-descriptionForeground);
+	font-size: 11px;
+}
+
+.agent-chat-message__tool-detail summary,
+.agent-chat-tool-card__detail summary {
+	cursor: pointer;
+	user-select: none;
+}
+
+.agent-chat-message__tool-detail pre,
+.agent-chat-tool-card__detail pre {
+	max-height: 220px;
+	overflow: auto;
+	margin: 5px 0 0;
+	padding: 7px 9px;
+	background: var(--vscode-textCodeBlock-background);
+	border-radius: 4px;
+	color: var(--vscode-editor-foreground);
+	font-family: var(--vscode-editor-font-family, monospace);
+	font-size: 10px;
+	line-height: 1.45;
+	white-space: pre-wrap;
 }
 
 .agent-chat-message__tool-title {
@@ -1959,6 +2155,24 @@ b {
 	max-width: 130px;
 }
 
+.agent-chat-chip__icon-img {
+	width: 14px;
+	height: 14px;
+	object-fit: contain;
+	flex-shrink: 0;
+	/* Registry icons ship as dark-on-transparent SVGs/PNGs. In a light
+	 * theme they render correctly (dark icon on light background). In a
+	 * dark theme the dark icon becomes invisible, so we invert the
+	 * luminance while preserving hue via the invert + hue-rotate combo.
+	 * The `data-vscode-theme-kind` attribute is injected onto <body> by
+	 * `getWebviewContent` based on `window.activeColorTheme.kind`. */
+}
+
+body[data-vscode-theme-kind~="vscode-dark"] .agent-chat-chip__icon-img,
+body[data-vscode-theme-kind~="vscode-high-contrast"] .agent-chat-chip__icon-img {
+	filter: invert(1) hue-rotate(180deg);
+}
+
 .agent-chat-chip__menu {
 	position: absolute;
 	bottom: calc(100% + 4px);
@@ -2149,4 +2363,34 @@ b {
  */
 .agent-chat-chip-overflow__menu .agent-chat-chip__menu {
 	z-index: 70;
+}
+
+@media (max-width: 260px) {
+	.agent-chat-new-session,
+	.agent-chat-input {
+		padding-right: 6px;
+		padding-left: 6px;
+	}
+
+	.agent-chat-new-session__tip,
+	.agent-chat-input__tip {
+		align-items: flex-start;
+		flex-wrap: wrap;
+	}
+
+	.agent-chat-composer-context {
+		gap: 6px;
+	}
+
+	.agent-chat-composer-context__usage {
+		display: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.agent-chat-input__activity,
+	.agent-chat-message__tool-dot,
+	.agent-chat-message__thought-summary i.codicon {
+		animation: none !important;
+	}
 }

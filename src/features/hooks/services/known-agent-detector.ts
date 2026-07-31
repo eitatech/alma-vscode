@@ -29,6 +29,8 @@
  */
 
 import { execFile as execFileCb } from "node:child_process";
+import { access, constants } from "node:fs/promises";
+import { homedir } from "node:os";
 import { platform } from "node:os";
 import type {
 	KnownAgentEntry,
@@ -37,6 +39,42 @@ import type {
 
 const LOG_PREFIX = "[KnownAgentDetector]";
 const EXEC_TIMEOUT_MS = 10_000;
+const WHITESPACE_SPLIT_RE = /\s/;
+
+/**
+ * Validates that a binary name contains only safe characters before
+ * interpolating it into a shell command string (`command -v <binary>`
+ * or `which <binary>`). Prevents command injection through
+ * metacharacters in agent catalog entries.
+ */
+const SAFE_BINARY_NAME_RE = /^[a-zA-Z0-9@._\-/]+$/;
+
+// ============================================================================
+// PATH helpers
+// ============================================================================
+
+/**
+ * Returns the user's PATH extended with common CLI tool installation
+ * directories. This ensures agents installed via uv, Cargo, Bun, Homebrew,
+ * etc. are discoverable even when the VS Code Extension Host does not inherit
+ * them from the user's shell profile.
+ */
+function getExtendedPath(): string {
+	const home = homedir();
+	const additionalPaths = [
+		`${home}/.local/bin`,
+		`${home}/.cargo/bin`,
+		`${home}/.bun/bin`,
+		`${home}/.deno/bin`,
+		`${home}/.langflow/uv`,
+		`${home}/.astral/uv/bin`,
+		`${home}/.uv/bin`,
+		"/opt/homebrew/bin",
+		"/usr/local/bin",
+	];
+	const currentPath = process.env.PATH || "";
+	return [...additionalPaths, currentPath].join(":");
+}
 
 // ============================================================================
 // Shell resolution helpers
@@ -235,15 +273,28 @@ export class KnownAgentDetector {
 		return this.checkPathUnix(binary);
 	}
 
-	private checkPathUnix(binary: string): Promise<boolean> {
+	private async checkPathUnix(binary: string): Promise<boolean> {
+		if (!SAFE_BINARY_NAME_RE.test(binary)) {
+			console.log(
+				`${LOG_PREFIX} refusing to check unsafe binary name: "${binary}"`
+			);
+			return false;
+		}
 		const shell = getUserShell();
+		// Extend PATH with common package-manager bin directories so that
+		// tools installed via bun, cargo, uv, Homebrew, etc. are discoverable
+		// even when the VS Code Extension Host does not inherit them.
+		const extendedPath = getExtendedPath();
 		const commandV = `command -v ${binary}`;
 
-		return new Promise<boolean>((resolve) => {
+		const shellResolved = await new Promise<boolean>((resolve) => {
 			execFileCb(
 				shell,
 				["-l", "-c", commandV],
-				{ timeout: EXEC_TIMEOUT_MS },
+				{
+					timeout: EXEC_TIMEOUT_MS,
+					env: { ...process.env, PATH: extendedPath },
+				},
 				(err, stdout) => {
 					if (err) {
 						console.log(
@@ -252,7 +303,90 @@ export class KnownAgentDetector {
 						resolve(false);
 						return;
 					}
-					resolve(stdout.trim().length > 0);
+					const path = stdout.trim().split(WHITESPACE_SPLIT_RE)[0];
+					if (!path) {
+						resolve(false);
+						return;
+					}
+					// command -v can return aliases/builtins; prefer a real file.
+					resolve(path.includes("/"));
+				}
+			);
+		});
+		if (shellResolved) {
+			return true;
+		}
+
+		// Fallback: direct PATH search with extended directories and an
+		// executable-permission check so we don't accept a non-executable file.
+		const location = await this.locateCLIExecutable(binary);
+		if (!location) {
+			return false;
+		}
+		try {
+			await access(location, constants.X_OK);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	/**
+	 * Locate a binary on the user's PATH using extended directories. This is
+	 * kept inline (instead of `utils/cli-detector`) so the detector can be
+	 * tested with a mocked `node:child_process` that only provides `execFile`.
+	 */
+	private locateCLIExecutable(binary: string): Promise<string | null> {
+		if (!SAFE_BINARY_NAME_RE.test(binary)) {
+			return Promise.resolve(null);
+		}
+		return new Promise<string | null>((resolve) => {
+			if (platform() === "win32") {
+				execFileCb(
+					"where.exe",
+					[binary],
+					{
+						timeout: EXEC_TIMEOUT_MS,
+						env: { ...process.env, PATH: getExtendedPath() },
+					},
+					async (err, stdout) => {
+						if (err) {
+							resolve(null);
+							return;
+						}
+						const path = stdout.trim().split(WHITESPACE_SPLIT_RE)[0];
+						if (!path) {
+							resolve(null);
+							return;
+						}
+						// Validate the resolved path is an accessible file
+						// before returning it. The extended PATH includes
+						// user-writable directories; verifying accessibility
+						// prevents returning stale or broken entries.
+						try {
+							await access(path, constants.F_OK);
+							resolve(path);
+						} catch {
+							resolve(null);
+						}
+					}
+				);
+				return;
+			}
+			execFileCb(
+				"/bin/sh",
+				["-c", `which ${binary}`],
+				{
+					timeout: EXEC_TIMEOUT_MS,
+					env: { ...process.env, PATH: getExtendedPath() },
+				},
+				(err, stdout) => {
+					if (err) {
+						resolve(null);
+						return;
+					}
+					const path = stdout.trim().split(WHITESPACE_SPLIT_RE)[0];
+					resolve(path || null);
 				}
 			);
 		});
@@ -263,8 +397,11 @@ export class KnownAgentDetector {
 			execFileCb(
 				"where.exe",
 				[binary],
-				{ timeout: EXEC_TIMEOUT_MS },
-				(err, stdout) => {
+				{
+					timeout: EXEC_TIMEOUT_MS,
+					env: { ...process.env, PATH: getExtendedPath() },
+				},
+				async (err, stdout) => {
 					if (err) {
 						console.log(
 							`${LOG_PREFIX} where.exe ${binary} failed: ${err.message}`
@@ -272,7 +409,21 @@ export class KnownAgentDetector {
 						resolve(false);
 						return;
 					}
-					resolve(stdout.trim().length > 0);
+					const path = stdout.trim().split(WHITESPACE_SPLIT_RE)[0];
+					if (!path) {
+						resolve(false);
+						return;
+					}
+					// Validate the resolved path is an accessible file before
+					// accepting it. The extended PATH includes user-writable
+					// directories; verifying accessibility prevents accepting
+					// stale or broken entries returned by where.exe.
+					try {
+						await access(path, constants.F_OK);
+						resolve(true);
+					} catch {
+						resolve(false);
+					}
 				}
 			);
 		});

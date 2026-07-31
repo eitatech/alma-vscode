@@ -53,7 +53,10 @@ export function AgentChatFeature(): JSX.Element {
 		changeModel,
 		changeThinkingLevel,
 		changeAgentRole,
+		changeConfigOption,
 		probeModels,
+		installProvider,
+		updateProvider,
 	} = bridge;
 
 	const latestRetryableError = useMemo(
@@ -91,8 +94,10 @@ export function AgentChatFeature(): JSX.Element {
 					agentFiles={state.catalog.agentFiles}
 					modelsLoading={state.modelsLoading}
 					onChangePermissionDefault={changePermissionDefault}
+					onInstallProvider={installProvider}
 					onProbeProviderModels={probeModels}
 					onStart={startNewSession}
+					onUpdateProvider={updateProvider}
 					permissionDefault={state.permissionDefault}
 					providers={state.catalog.providers}
 				/>
@@ -155,16 +160,20 @@ export function AgentChatFeature(): JSX.Element {
 			<InputBar
 				acceptsFollowUp={session.acceptsFollowUp}
 				availableAgentRoles={session.availableAgentRoles}
+				availableCommands={state.availableCommands}
 				availableModels={session.availableModels ?? state.availableModels}
 				availableThinkingLevels={session.availableThinkingLevels}
 				busy={isBusyState(session.lifecycleState)}
+				configOptions={state.configOptions}
 				currentModelId={session.currentModelId ?? session.selectedModelId}
+				executionTargetLabel={session.executionTarget.label}
 				modelLabel={session.selectedModelId ?? session.agentDisplayName}
 				modelsLoading={Boolean(
 					state.modelsLoading?.[deriveProviderIdForSession(session)]
 				)}
 				onCancel={cancel}
 				onChangeAgentRole={changeAgentRole}
+				onChangeConfigOption={changeConfigOption}
 				onChangeModel={changeModel}
 				onChangePermissionDefault={changePermissionDefault}
 				onChangeThinkingLevel={changeThinkingLevel}
@@ -172,6 +181,7 @@ export function AgentChatFeature(): JSX.Element {
 				onSubmit={submit}
 				permissionDefault={state.permissionDefault}
 				providerDisplayName={session.agentDisplayName}
+				providerIconUrl={session.iconUrl}
 				providerId={deriveProviderIdForSession(session)}
 				readOnly={session.isReadOnly}
 				readOnlyReason={
@@ -180,6 +190,7 @@ export function AgentChatFeature(): JSX.Element {
 				selectedAgentRoleId={session.selectedAgentRoleId}
 				selectedThinkingLevelId={session.selectedThinkingLevelId}
 				terminal={isTerminalState(session.lifecycleState)}
+				usage={state.acpUsage}
 			/>
 			<button
 				aria-label="Cancel session"

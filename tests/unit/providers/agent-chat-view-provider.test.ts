@@ -169,14 +169,19 @@ describe("AgentChatViewProvider", () => {
 		agents?: ReturnType<typeof vi.fn>;
 	}): AgentChatViewProvider {
 		const catalogChangedEmitter = new EventEmitter<void>();
+		const providerList = catalogOverrides?.providers
+			? catalogOverrides.providers
+			: vi.fn(() => []);
 		return new AgentChatViewProvider({
 			context: makeContext() as never,
 			store,
 			registry,
 			catalogSources: {
-				acpProviderRegistry: catalogOverrides?.providers
-					? ({ list: catalogOverrides.providers } as never)
-					: ({ list: () => [] } as never),
+				acpProviderRegistry: {
+					list: providerList,
+					get: (id: string) =>
+						providerList().find((p: { id: string }) => p.id === id),
+				} as never,
 				agentRegistry: catalogOverrides?.agents
 					? ({ getAllAgents: catalogOverrides.agents } as never)
 					: ({ getAllAgents: () => [] } as never),
@@ -310,11 +315,11 @@ describe("AgentChatViewProvider", () => {
 		expect(startCall).toBeDefined();
 		const params = startCall?.[1] as {
 			agentId: string;
-			mode: string;
+			modelId: string;
 			taskInstruction: string;
 		};
 		expect(params.agentId).toBe("claude");
-		expect(params.mode).toBe("claude-3-opus");
+		expect(params.modelId).toBe("claude-3-opus");
 		expect(params.taskInstruction).toContain("do the thing");
 	});
 
@@ -467,6 +472,75 @@ describe("AgentChatViewProvider", () => {
 			await Promise.resolve();
 
 			expect(update).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("probe refresh (latestVersion detection)", () => {
+		it("rebroadcasts the catalog when latestVersion changes between probes", async () => {
+			let latestVersion: string | null = "1.0.0";
+			const probeImpl = vi.fn(async () => ({
+				installed: true,
+				version: "1.0.0",
+				latestVersion,
+				authenticated: true,
+				acpSupported: true,
+				executablePath: "/usr/bin/claude",
+			}));
+
+			const catalogChangedEmitter = new EventEmitter<void>();
+			const viewProvider = new AgentChatViewProvider({
+				context: makeContext() as never,
+				store,
+				registry,
+				catalogSources: {
+					acpProviderRegistry: {
+						list: () => [
+							{
+								id: "claude",
+								displayName: "Claude",
+								source: "built-in",
+								spawnCommand: "claude",
+								spawnArgs: [],
+								probe: probeImpl,
+								latestVersion,
+							},
+						],
+						get: (id: string) =>
+							id === "claude"
+								? {
+										id: "claude",
+										displayName: "Claude",
+										source: "built-in",
+										spawnCommand: "claude",
+										spawnArgs: [],
+										probe: probeImpl,
+										latestVersion,
+									}
+								: undefined,
+					} as never,
+					agentRegistry: { getAllAgents: () => [] } as never,
+				},
+				onCatalogChanged: (cb) => {
+					const sub = catalogChangedEmitter.event(() => cb());
+					return { dispose: () => sub.dispose() };
+				},
+			});
+			const view = createFakeView();
+			viewProvider.resolveWebviewView(view as never, {} as never, {} as never);
+			// Let the initial probe refresh settle.
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			view.webview.postMessage.mockClear();
+
+			// Simulate a new version appearing in the registry.
+			latestVersion = "2.0.0";
+			catalogChangedEmitter.fire();
+			// Let the probe refresh detect the latestVersion change.
+			await new Promise((resolve) => setTimeout(resolve, 50));
+
+			const catalogCalls = view.webview.postMessage.mock.calls.filter(
+				([m]) => (m as { type: string }).type === "agent-chat/catalog/loaded"
+			);
+			expect(catalogCalls.length).toBeGreaterThan(0);
 		});
 	});
 });

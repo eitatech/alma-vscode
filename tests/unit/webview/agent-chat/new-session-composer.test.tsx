@@ -27,6 +27,8 @@ const AGENT_ROLE_CHIP_RE = /^Agent role:/i;
 const ALLOW_OPTION_RE = /^Auto-approve$/;
 const START_CHAT_RE = /Start chat/i;
 const PROMPT_PLACEHOLDER_RE = /Describe the task/i;
+const CREATE_AGENT_TIP_RE = /create_agent/i;
+const LOCAL_TARGET_RE = /^Local$/i;
 
 afterEach(() => {
 	cleanup();
@@ -58,6 +60,24 @@ const PROVIDERS: readonly AgentChatProviderOption[] = [
 ];
 
 describe("NewSessionComposer", () => {
+	it("matches the reference hierarchy with a tip and context row", () => {
+		const { container } = render(
+			<NewSessionComposer
+				agentFiles={[]}
+				onChangePermissionDefault={vi.fn()}
+				onStart={vi.fn()}
+				permissionDefault="ask"
+				providers={PROVIDERS}
+			/>
+		);
+
+		expect(screen.getByText(CREATE_AGENT_TIP_RE)).toBeInTheDocument();
+		expect(screen.getByText(LOCAL_TARGET_RE)).toBeInTheDocument();
+		expect(
+			container.querySelector(".agent-chat-new-session__context")
+		).not.toBeNull();
+	});
+
 	it("renders the permission chip in the integrated toolbar", () => {
 		render(
 			<NewSessionComposer

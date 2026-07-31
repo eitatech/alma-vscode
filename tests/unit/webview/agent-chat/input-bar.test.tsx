@@ -20,6 +20,11 @@ const ASK_PLACEHOLDER_RE = /Ask anything/i;
 const PERMISSION_CHIP_RE = /^Permission:/i;
 const PERMISSION_CHIP_AUTO_TITLE_RE = /Permission:\s*Auto/;
 const PERMISSION_CHIP_AUTO_OPTION_RE = /Auto-approve/i;
+const LOCAL_TARGET_RE = /^Local$/i;
+const CONTEXT_USAGE_RE = /25% context/i;
+const REVIEW_COMMAND_RE = /review.*Review the current changes/i;
+const MODE_CHIP_RE = /^Mode:/i;
+const PLAN_OPTION_RE = /^Plan$/i;
 
 /** Default props common to every render — keeps each test focused. */
 const DEFAULT_PROPS = {
@@ -154,6 +159,43 @@ describe("InputBar", () => {
 		expect(textarea.placeholder).toMatch(ASK_PLACEHOLDER_RE);
 	});
 
+	it("shows the editor-local context and usage below the composer", () => {
+		render(
+			<InputBar
+				{...DEFAULT_PROPS}
+				acceptsFollowUp={true}
+				executionTargetLabel="Local"
+				onSubmit={vi.fn()}
+				usage={{ used: 32_000, size: 128_000 }}
+			/>
+		);
+
+		expect(screen.getByText(LOCAL_TARGET_RE)).toBeInTheDocument();
+		expect(screen.getByText(CONTEXT_USAGE_RE)).toBeInTheDocument();
+	});
+
+	it("offers matching ACP slash commands and inserts the selected command", () => {
+		render(
+			<InputBar
+				{...DEFAULT_PROPS}
+				acceptsFollowUp={true}
+				availableCommands={[
+					{ name: "review", description: "Review the current changes" },
+					{ name: "compact", description: "Compact the session" },
+				]}
+				onSubmit={vi.fn()}
+			/>
+		);
+
+		const textarea = screen.getByRole("textbox") as HTMLTextAreaElement;
+		fireEvent.change(textarea, { target: { value: "/rev" } });
+		expect(
+			screen.getByRole("option", { name: REVIEW_COMMAND_RE })
+		).toBeInTheDocument();
+		fireEvent.click(screen.getByRole("option", { name: REVIEW_COMMAND_RE }));
+		expect(textarea.value).toBe("/review ");
+	});
+
 	it("renders the PermissionChip with the bridged value", () => {
 		render(
 			<InputBar
@@ -239,5 +281,39 @@ describe("InputBar", () => {
 		expect(
 			screen.queryByRole("button", { name: AGENT_ROLE_CHIP_RE })
 		).toBeNull();
+	});
+
+	it("prefers ACP config options over legacy model and thinking selectors", () => {
+		const onChangeConfigOption = vi.fn();
+		render(
+			<InputBar
+				{...DEFAULT_PROPS}
+				acceptsFollowUp={true}
+				availableModels={[
+					{ id: "legacy", displayName: "Legacy", invocation: "initial-prompt" },
+				]}
+				availableThinkingLevels={[{ id: "high", displayName: "High" }]}
+				configOptions={[
+					{
+						id: "mode",
+						name: "Mode",
+						category: "mode",
+						currentValue: "agent",
+						values: [
+							{ value: "agent", name: "Agent" },
+							{ value: "plan", name: "Plan" },
+						],
+					},
+				]}
+				onChangeConfigOption={onChangeConfigOption}
+				onSubmit={vi.fn()}
+			/>
+		);
+
+		expect(screen.queryByLabelText("Select agent model")).toBeNull();
+		expect(screen.queryByRole("button", { name: THINKING_CHIP_RE })).toBeNull();
+		fireEvent.click(screen.getByRole("button", { name: MODE_CHIP_RE }));
+		fireEvent.click(screen.getByRole("menuitem", { name: PLAN_OPTION_RE }));
+		expect(onChangeConfigOption).toHaveBeenCalledWith("mode", "plan");
 	});
 });

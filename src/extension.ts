@@ -39,6 +39,7 @@ import {
 } from "./features/agent-chat/agent-chat-entry-points";
 import { AcpProviderRegistry } from "./services/acp/acp-provider-registry";
 import { AcpSessionManager } from "./services/acp/acp-session-manager";
+import type { AcpProviderDescriptor } from "./services/acp/types";
 import {
 	createDescriptorFromKnownAgent,
 	createDescriptorFromRemoteEntry,
@@ -97,6 +98,8 @@ import {
 } from "./features/spec/review-flow/commands/send-to-archived-command";
 import { WelcomeScreenPanel } from "./panels/welcome-screen-panel";
 import { WelcomeScreenProvider } from "./providers/welcome-screen-provider";
+import { MaestroPanel } from "./panels/maestro-panel";
+import { MaestroProvider } from "./providers/maestro-provider";
 import {
 	shouldShowWelcomeAutomatically,
 	markWelcomeAsShown,
@@ -108,7 +111,7 @@ import {
 import { registerDevinCommands } from "./commands/devin-commands";
 import { DevinCredentialsManager } from "./features/devin/devin-credentials-manager";
 import { DevinSessionManager } from "./features/devin/devin-session-manager";
-import { DevinSessionStorage } from "./features/devin/devin-session-storage";
+import { DevinSessionStorage as DevinSessionStorageImpl } from "./features/devin/devin-session-storage";
 import { DevinPollingService } from "./features/devin/devin-polling-service";
 import { SessionCleanupService } from "./features/devin/session-cleanup";
 import { disposeCloudAgentsOutputChannel } from "./features/cloud-agents/logging";
@@ -613,7 +616,9 @@ Tasks:
 		const devinCredentialsManager = new DevinCredentialsManager(
 			context.secrets
 		);
-		const devinSessionStorage = new DevinSessionStorage(context.workspaceState);
+		const devinSessionStorage = new DevinSessionStorageImpl(
+			context.workspaceState
+		);
 		const devinSessionManager = new DevinSessionManager(
 			devinSessionStorage,
 			devinCredentialsManager
@@ -785,7 +790,7 @@ Tasks:
 
 async function handleDevinPrStateChange(
 	event: import("./features/devin/devin-polling-service").PrStateChangeEvent,
-	storage: DevinSessionStorage
+	storage: DevinSessionStorageImpl
 ): Promise<void> {
 	if (event.newState !== "merged") {
 		return;
@@ -1757,6 +1762,49 @@ function registerCommands({
 			}
 		}),
 
+		commands.registerCommand("gatomia.showMaestro", async () => {
+			outputChannel.appendLine("Showing Maestro Board...");
+			try {
+				const { AgentSessionStorage } = await import(
+					"./features/cloud-agents/agent-session-storage"
+				);
+				const { DevinSessionStorage: DevinSessionStorageClass } = await import(
+					"./features/devin/devin-session-storage"
+				);
+				const { AgentChatSessionStore } = await import(
+					"./features/agent-chat/agent-chat-session-store"
+				);
+				const { createVscodeArchiveWriter } = await import(
+					"./features/agent-chat/vscode-archive-writer"
+				);
+
+				const sessionStorage = new AgentSessionStorage(context.workspaceState);
+				const devinStorage = new DevinSessionStorageClass(
+					context.workspaceState
+				);
+				const archive = createVscodeArchiveWriter(context.globalStorageUri);
+				const chatStore = new AgentChatSessionStore({
+					workspaceState: context.workspaceState,
+					archive,
+				});
+				await chatStore.initialize();
+
+				const provider = new MaestroProvider({
+					context,
+					output: outputChannel,
+					agentSessionStorage: sessionStorage,
+					devinSessionStorage: devinStorage,
+					agentChatSessionStore: chatStore,
+				});
+
+				MaestroPanel.showWithProvider(context, outputChannel, provider);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : String(error);
+				outputChannel.appendLine(`[Maestro] Failed to show: ${message} `);
+				window.showErrorMessage(`Failed to show Maestro Board: ${message} `);
+			}
+		}),
+
 		commands.registerCommand("gatomia.menu.open", async () => {
 			outputChannel.appendLine("Opening GatomIA menu...");
 			await toggleViews();
@@ -2241,6 +2289,60 @@ function scheduleRemoteRegistryMerge(
 		});
 }
 
+/**
+ * Merge metadata (iconUrl, latestVersion, installCommand, updateCommand,
+ * description) from a remote registry entry into an existing built-in or
+ * local descriptor. The original probe / spawnCommand / spawnArgs are
+ * preserved — only display and update metadata is enriched.
+ *
+ * Returns the original descriptor unchanged when the remote entry carries
+ * no new information, so callers can skip re-registering.
+ */
+function mergeRemoteMetadata(
+	existing: AcpProviderDescriptor,
+	remote: {
+		icon?: string;
+		version?: string;
+		description?: string;
+		distribution?: {
+			npx?: { package: string };
+		};
+	}
+): AcpProviderDescriptor {
+	const iconUrl = remote.icon ?? existing.iconUrl;
+	const latestVersion = remote.version ?? existing.latestVersion;
+	const description = remote.description ?? existing.description;
+	// Derive install/update commands from npx distribution when the
+	// built-in/local descriptor doesn't already have them.
+	const npxPackage = remote.distribution?.npx?.package;
+	const installCommand =
+		existing.installCommand ??
+		(npxPackage ? `npm install -g ${npxPackage}` : undefined);
+	const updateCommand =
+		existing.updateCommand ??
+		(npxPackage ? `npm install -g ${npxPackage}` : undefined);
+
+	// Nothing to merge — skip re-registration.
+	if (
+		iconUrl === existing.iconUrl &&
+		latestVersion === existing.latestVersion &&
+		description === existing.description &&
+		installCommand === existing.installCommand &&
+		updateCommand === existing.updateCommand
+	) {
+		return existing;
+	}
+
+	return {
+		...existing,
+		iconUrl,
+		latestVersion,
+		description,
+		installCommand,
+		updateCommand,
+	};
+}
+
 function mergeRemoteEntries(
 	registry: AcpProviderRegistry,
 	entries: readonly { id: string }[],
@@ -2256,10 +2358,20 @@ function mergeRemoteEntries(
 		// the host system. Replacing them with a remote descriptor — which
 		// always probes as `installed: false` — would falsely flag locally
 		// installed CLIs (opencode, junie, copilot, …) as missing.
+		// However, we DO merge metadata (iconUrl, latestVersion,
+		// installCommand, updateCommand, description) from the remote entry
+		// so built-in/local agents get the correct icon and update info.
 		if (
 			existing &&
 			(existing.source === "built-in" || existing.source === "local")
 		) {
+			const merged = mergeRemoteMetadata(
+				existing,
+				entry as Parameters<typeof mergeRemoteMetadata>[1]
+			);
+			if (merged !== existing) {
+				registry.register(merged);
+			}
 			continue;
 		}
 		try {
@@ -2278,6 +2390,14 @@ function mergeRemoteEntries(
 	outputChannel.appendLine(
 		`[ACP] Remote registry merged: now ${registry.list().length} provider(s)`
 	);
+	// Fire the update event AFTER the merge so the chat view provider
+	// rebroadcasts the catalog with the newly-registered descriptors.
+	// `loadRemoteRegistry` already fired `onDidUpdate` before this
+	// function ran, but at that point the remote entries were only in
+	// `registry.remoteEntries` — not yet registered as runnable
+	// descriptors. Without this second fire, the picker never shows
+	// remote agents.
+	registry.notifyProvidersChanged();
 }
 
 function registerAcpCommands(context: ExtensionContext): void {
@@ -2955,6 +3075,9 @@ async function bootstrapAgentChat(
 					agentDisplayName: params.agentDisplayName,
 					capabilities: { source: "none" },
 					selectedModeId: params.mode,
+					selectedModelId: params.modelId,
+					selectedThinkingLevelId: params.thinkingLevelId,
+					selectedAgentRoleId: params.agentRoleId,
 					executionTarget: { kind: "local" },
 					trigger: { kind: "user" },
 					worktree: null,
@@ -2971,12 +3094,14 @@ async function bootstrapAgentChat(
 					store,
 					registry,
 					manager: {
-						sendPrompt: (providerId, runnerCwd, sessionId, prompt) =>
+						// biome-ignore lint/nursery/useMaxParams: ACP session routing requires provider, cwd, session, prompt, and optional model options
+						sendPrompt: (providerId, runnerCwd, sessionId, prompt, options) =>
 							sessionManager.sendPromptDirect(
 								providerId,
 								runnerCwd ?? cwd,
 								sessionId,
-								prompt
+								prompt,
+								options
 							),
 						cancel: (providerId, runnerCwd, sessionId) =>
 							sessionManager.cancelDirect(
@@ -3005,6 +3130,21 @@ async function bootstrapAgentChat(
 								action
 							);
 						},
+						// biome-ignore lint/nursery/useMaxParams: ACP routing requires provider, cwd, session, config id, and selected value
+						setSessionConfigOption: (
+							providerId,
+							runnerCwd,
+							sessionId,
+							configId,
+							value
+						) =>
+							sessionManager.setSessionConfigOption(
+								providerId,
+								runnerCwd ?? cwd,
+								sessionId,
+								configId,
+								value
+							),
 					},
 					acpSessionId,
 				});
