@@ -47,6 +47,15 @@ export const window = {
 	showQuickPick: vi.fn(),
 	createTerminal: vi.fn(),
 	onDidEndTerminalShellExecution: vi.fn(),
+	createOutputChannel: vi.fn((name: string) => ({
+		appendLine: vi.fn(),
+		append: vi.fn(),
+		clear: vi.fn(),
+		show: vi.fn(),
+		hide: vi.fn(),
+		dispose: vi.fn(),
+		name,
+	})),
 	createWebviewPanel: vi.fn(() => ({
 		webview: {
 			html: "",
@@ -147,6 +156,8 @@ export class TreeItem {
 	description: string | undefined;
 	command: unknown;
 	resourceUri: { fsPath: string } | undefined;
+	contextValue: string | undefined;
+	id: string | undefined;
 
 	constructor(label: string, collapsibleState: TreeItemCollapsibleState) {
 		this.label = label;
@@ -192,6 +203,9 @@ export class RelativePattern {
 
 export const env = {
 	machineId: "test-machine",
+	appName: "Visual Studio Code",
+	remoteName: undefined as string | undefined,
+	uriScheme: "vscode",
 	clipboard: {
 		writeText: vi.fn().mockResolvedValue(undefined),
 		readText: vi.fn().mockResolvedValue(""),
