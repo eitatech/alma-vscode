@@ -10,7 +10,10 @@ import {
 	TreeItemCollapsibleState,
 	workspace,
 } from "vscode";
-import type { Specification } from "../features/spec/review-flow/types";
+import type {
+	ChangeRequestStatus,
+	Specification,
+} from "../features/spec/review-flow/types";
 import type { SpecManager } from "../features/spec/spec-manager";
 import { SPEC_SYSTEM_MODE, type SpecSystemMode } from "../constants";
 import {
@@ -32,6 +35,8 @@ import {
 import { getChecklistStatusFromFile } from "../utils/checklist-parser";
 
 const MARKDOWN_EXTENSION_PATTERN = /\.md$/;
+const SPEC_FILE_WATCHER_DEBOUNCE_MS = 2000;
+const SPEC_FILE_WATCHER_GLOB = "**/specs/**/*.md";
 
 export class SpecExplorerProvider implements TreeDataProvider<SpecItem> {
 	static readonly viewId = "gatomia.views.specExplorer";
@@ -49,6 +54,7 @@ export class SpecExplorerProvider implements TreeDataProvider<SpecItem> {
 
 	private specManager!: SpecManager;
 	private readonly context: ExtensionContext;
+	private debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
 	constructor(context: ExtensionContext) {
 		this.context = context;
@@ -59,6 +65,21 @@ export class SpecExplorerProvider implements TreeDataProvider<SpecItem> {
 				this.refresh();
 			})
 		);
+
+		// Watch for spec file changes and refresh tree with debounce
+		const watcher = workspace.createFileSystemWatcher(SPEC_FILE_WATCHER_GLOB);
+		const debouncedRefresh = () => {
+			if (this.debounceTimer) {
+				clearTimeout(this.debounceTimer);
+			}
+			this.debounceTimer = setTimeout(() => {
+				this.refresh();
+			}, SPEC_FILE_WATCHER_DEBOUNCE_MS);
+		};
+		watcher.onDidCreate(debouncedRefresh);
+		watcher.onDidChange(debouncedRefresh);
+		watcher.onDidDelete(debouncedRefresh);
+		context.subscriptions.push(watcher);
 	}
 
 	private createSpecItem(
@@ -356,7 +377,18 @@ export class SpecExplorerProvider implements TreeDataProvider<SpecItem> {
 					"quickstart.md": { label: "Quickstart", type: "quickstart" },
 				};
 
+				const extraEntries: [string, string][] = [];
+
 				for (const [docType, absolutePath] of Object.entries(files)) {
+					// Collect extra files and folders for later (sorted after known docs)
+					if (
+						docType.startsWith("extra:") ||
+						docType.startsWith("extra-folder:")
+					) {
+						extraEntries.push([docType, absolutePath]);
+						continue;
+					}
+
 					const fileName = basename(absolutePath);
 
 					// Handle tasks.md as a folder with task items
@@ -409,6 +441,26 @@ export class SpecExplorerProvider implements TreeDataProvider<SpecItem> {
 						continue;
 					}
 
+					// Handle contracts folder
+					if (docType === "contracts") {
+						const relativePath = workspace.asRelativePath(absolutePath);
+						items.push(
+							new SpecItem(
+								"Contracts",
+								TreeItemCollapsibleState.Collapsed,
+								"contracts-folder",
+								this.context,
+								element.specName,
+								"contracts",
+								undefined,
+								relativePath,
+								undefined,
+								element.system
+							)
+						);
+						continue;
+					}
+
 					const fileInfo = fileMap[fileName] || {
 						label: fileName,
 						type: "file",
@@ -431,6 +483,78 @@ export class SpecExplorerProvider implements TreeDataProvider<SpecItem> {
 								arguments: [relativePath, fileInfo.type],
 							},
 							relativePath
+						)
+					);
+				}
+
+				// Append extension-generated documents sorted alphabetically
+				const extraFileEntries = extraEntries
+					.filter(([key]) => key.startsWith("extra:"))
+					.sort((a, b) => a[0].localeCompare(b[0]));
+				for (const [docType, absolutePath] of extraFileEntries) {
+					const fileName = docType.slice("extra:".length);
+					const displayName = fileName.replace(MARKDOWN_EXTENSION_PATTERN, "");
+					const formattedName =
+						displayName.charAt(0).toUpperCase() +
+						displayName.slice(1).replace(/-/g, " ");
+					const relativePath = workspace.asRelativePath(absolutePath);
+
+					items.push(
+						new SpecItem(
+							formattedName,
+							TreeItemCollapsibleState.None,
+							"extension-document",
+							this.context,
+							element.specName,
+							"extension-document",
+							{
+								command: SpecExplorerProvider.openSpecCommandId,
+								title: `Open ${formattedName}`,
+								arguments: [relativePath, "extension-document"],
+							},
+							relativePath,
+							undefined,
+							element.system
+						)
+					);
+				}
+
+				// Log extension document discovery for observability
+				if (extraEntries.length > 0) {
+					const fileCount = extraEntries.filter(([k]) =>
+						k.startsWith("extra:")
+					).length;
+					const folderCount = extraEntries.filter(([k]) =>
+						k.startsWith("extra-folder:")
+					).length;
+					console.debug(
+						`[GatomIA] Spec "${element.specName}": discovered ${fileCount} extension document(s), ${folderCount} extension folder(s)`
+					);
+				}
+
+				// Append extension folders sorted alphabetically after extra documents
+				const extraFolderEntries = extraEntries
+					.filter(([key]) => key.startsWith("extra-folder:"))
+					.sort((a, b) => a[0].localeCompare(b[0]));
+				for (const [docType, absolutePath] of extraFolderEntries) {
+					const folderName = docType.slice("extra-folder:".length);
+					const formattedName =
+						folderName.charAt(0).toUpperCase() +
+						folderName.slice(1).replace(/-/g, " ");
+					const relativePath = workspace.asRelativePath(absolutePath);
+
+					items.push(
+						new SpecItem(
+							formattedName,
+							TreeItemCollapsibleState.Collapsed,
+							"extension-folder",
+							this.context,
+							element.specName,
+							"extension-folder",
+							undefined,
+							relativePath,
+							undefined,
+							element.system
 						)
 					);
 				}
@@ -610,6 +734,69 @@ export class SpecExplorerProvider implements TreeDataProvider<SpecItem> {
 			}
 		}
 
+		// Handle contracts folder - show individual contract files
+		if (element.contextValue === "contracts-folder") {
+			const contractsFolderPath = element.filePath;
+			if (!contractsFolderPath) {
+				return [];
+			}
+
+			const workspaceRoot = workspace.workspaceFolders?.[0].uri.fsPath;
+			if (!workspaceRoot) {
+				return [];
+			}
+
+			const absolutePath = join(workspaceRoot, contractsFolderPath);
+
+			try {
+				const { readdirSync, statSync } = await import("node:fs");
+				const entries = readdirSync(absolutePath);
+				const contractItems: SpecItem[] = [];
+
+				for (const entry of entries) {
+					const filePath = join(absolutePath, entry);
+					const stat = statSync(filePath);
+
+					if (stat.isFile()) {
+						const relativePath = workspace.asRelativePath(filePath);
+						const displayName = entry.replace(MARKDOWN_EXTENSION_PATTERN, "");
+						const formattedName =
+							displayName.charAt(0).toUpperCase() +
+							displayName.slice(1).replace(/-/g, " ");
+
+						contractItems.push(
+							new SpecItem(
+								formattedName,
+								TreeItemCollapsibleState.None,
+								"contract-item",
+								this.context,
+								element.specName,
+								"contract",
+								{
+									command: SpecExplorerProvider.openSpecCommandId,
+									title: `Open ${formattedName}`,
+									arguments: [relativePath, "contract"],
+								},
+								relativePath,
+								undefined,
+								element.system
+							)
+						);
+					}
+				}
+
+				return contractItems;
+			} catch (error) {
+				console.error("Error reading contracts folder:", error);
+				return [];
+			}
+		}
+
+		// Handle extension folder - show contained .md files and nested subfolders recursively
+		if (element.contextValue === "extension-folder") {
+			return this.getExtensionFolderChildren(element);
+		}
+
 		if (element.contextValue === "change") {
 			const basePath = `openspec/changes/${element.specName}`;
 			return [
@@ -708,6 +895,87 @@ export class SpecExplorerProvider implements TreeDataProvider<SpecItem> {
 
 		return [];
 	}
+
+	/**
+	 * Returns children of an extension-folder node by reading the directory recursively.
+	 */
+	private async getExtensionFolderChildren(
+		element: SpecItem
+	): Promise<SpecItem[]> {
+		const folderPath = element.filePath;
+		if (!folderPath) {
+			return [];
+		}
+
+		const workspaceRoot = workspace.workspaceFolders?.[0].uri.fsPath;
+		if (!workspaceRoot) {
+			return [];
+		}
+
+		const absolutePath = join(workspaceRoot, folderPath);
+
+		try {
+			const { readdirSync, statSync } = await import("node:fs");
+			const entries = readdirSync(absolutePath);
+			const items: SpecItem[] = [];
+
+			for (const entry of entries) {
+				const entryPath = join(absolutePath, entry);
+				const entryStat = statSync(entryPath);
+
+				if (entryStat.isFile() && entry.endsWith(".md")) {
+					const relativePath = workspace.asRelativePath(entryPath);
+					const displayName = entry.replace(MARKDOWN_EXTENSION_PATTERN, "");
+					const formattedName =
+						displayName.charAt(0).toUpperCase() +
+						displayName.slice(1).replace(/-/g, " ");
+
+					items.push(
+						new SpecItem(
+							formattedName,
+							TreeItemCollapsibleState.None,
+							"extension-document",
+							this.context,
+							element.specName,
+							"extension-document",
+							{
+								command: SpecExplorerProvider.openSpecCommandId,
+								title: `Open ${formattedName}`,
+								arguments: [relativePath, "extension-document"],
+							},
+							relativePath,
+							undefined,
+							element.system
+						)
+					);
+				} else if (entryStat.isDirectory()) {
+					const relativePath = workspace.asRelativePath(entryPath);
+					const formattedName =
+						entry.charAt(0).toUpperCase() + entry.slice(1).replace(/-/g, " ");
+
+					items.push(
+						new SpecItem(
+							formattedName,
+							TreeItemCollapsibleState.Collapsed,
+							"extension-folder",
+							this.context,
+							element.specName,
+							"extension-folder",
+							undefined,
+							relativePath,
+							undefined,
+							element.system
+						)
+					);
+				}
+			}
+
+			return items;
+		} catch (error) {
+			console.error("Error reading extension folder:", error);
+			return [];
+		}
+	}
 }
 
 class SpecItem extends TreeItem {
@@ -787,7 +1055,11 @@ class SpecItem extends TreeItem {
 			"task-item": () => this.handleTaskItemIcon(),
 			"checklists-folder": () => this.handleChecklistsFolderIcon(),
 			"checklist-item": () => this.handleChecklistItemIcon(),
+			"contracts-folder": () => this.handleContractsFolderIcon(),
+			"contract-item": () => this.handleContractItemIcon(),
 			"change-request": () => this.handleChangeRequestIcon(),
+			"extension-document": () => this.handleExtensionDocumentIcon(),
+			"extension-folder": () => this.handleExtensionFolderIcon(),
 		};
 
 		return handlers[this.contextValue];
@@ -854,6 +1126,26 @@ class SpecItem extends TreeItem {
 		this.description = statusText;
 	}
 
+	private handleContractsFolderIcon(): void {
+		this.iconPath = new ThemeIcon("law");
+		this.tooltip = "Contracts - Click to expand";
+	}
+
+	private handleContractItemIcon(): void {
+		this.iconPath = new ThemeIcon("file-code");
+		this.tooltip = `Contract: ${this.label}`;
+	}
+
+	private handleExtensionDocumentIcon(): void {
+		this.iconPath = new ThemeIcon("extensions");
+		this.tooltip = `Extension document: ${this.label}`;
+	}
+
+	private handleExtensionFolderIcon(): void {
+		this.iconPath = new ThemeIcon("folder-library");
+		this.tooltip = `Extension folder: ${this.label}`;
+	}
+
 	private handleChangeRequestIcon(): void {
 		if (!this.changeRequest) {
 			return;
@@ -880,8 +1172,9 @@ class SpecItem extends TreeItem {
 		this.iconPath = new ThemeIcon(icon, color);
 
 		// Build tooltip with details
-		const statusEmoji = {
+		const statusEmoji: Record<ChangeRequestStatus, string> = {
 			open: "🔴",
+			blocked: "🚫",
 			inProgress: "🟡",
 			addressed: "✅",
 		};
